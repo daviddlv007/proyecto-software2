@@ -1,0 +1,41 @@
+type Categoria { id: ID! nombre: String descripcion: String }
+type Producto { id: ID! nombre: String descripcion: String imagenUrl: String precio: Float stock: Int categoria: Categoria }
+type Cliente { id: ID! nombre: String correo: String telefono: String }
+type Usuario { id: ID! nombre: String correo: String contrasena: String }
+type Venta { id: ID! cliente: Cliente fecha: String total: Float }
+type DetalleVenta { id: ID! venta: Venta producto: Producto cantidad: Int precioUnitario: Float }
+
+type Query {
+  allCategorias: [Categoria]
+  allProductos: [Producto]
+  allClientes: [Cliente]
+  allUsuarios: [Usuario]
+  allVentas: [Venta]
+  allDetalleVentas: [DetalleVenta]
+}
+
+type Mutation {
+  createCategoria(nombre: String!, descripcion: String): Categoria
+  updateCategoria(id: ID!, nombre: String, descripcion: String): Categoria
+  deleteCategoria(id: ID!): Boolean
+
+  createProducto(nombre: String!, descripcion: String, imagenUrl: String, precio: Float!, stock: Int, categoriaId: ID!): Producto
+  updateProducto(id: ID!, nombre: String, descripcion: String, imagenUrl: String, precio: Float, stock: Int, categoriaId: ID): Producto
+  deleteProducto(id: ID!): Boolean
+
+  createCliente(nombre: String!, correo: String!, telefono: String): Cliente
+  updateCliente(id: ID!, nombre: String, correo: String, telefono: String): Cliente
+  deleteCliente(id: ID!): Boolean
+
+  createUsuario(nombre: String!, correo: String!, contrasena: String!): Usuario
+  updateUsuario(id: ID!, nombre: String, correo: String, contrasena: String): Usuario
+  deleteUsuario(id: ID!): Boolean
+
+  createVenta(clienteId: ID!, fecha: String, total: Float!): Venta
+  updateVenta(id: ID!, clienteId: ID, fecha: String, total: Float): Venta
+  deleteVenta(id: ID!): Boolean
+
+  createDetalleVenta(ventaId: ID!, productoId: ID!, cantidad: Int!, precioUnitario: Float!): DetalleVenta
+  updateDetalleVenta(id: ID!, ventaId: ID, productoId: ID, cantidad: Int, precioUnitario: Float): DetalleVenta
+  deleteDetalleVenta(id: ID!): Boolean
+}
