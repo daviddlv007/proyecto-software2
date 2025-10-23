@@ -1,41 +1,130 @@
-type Categoria { id: ID! nombre: String descripcion: String }
-type Producto { id: ID! nombre: String descripcion: String imagenUrl: String precio: Float stock: Int categoria: Categoria }
-type Cliente { id: ID! nombre: String correo: String telefono: String }
-type Usuario { id: ID! nombre: String correo: String contrasena: String }
-type Venta { id: ID! cliente: Cliente fecha: String total: Float }
-type DetalleVenta { id: ID! venta: Venta producto: Producto cantidad: Int precioUnitario: Float }
-
-type Query {
-  allCategorias: [Categoria]
-  allProductos: [Producto]
-  allClientes: [Cliente]
-  allUsuarios: [Usuario]
-  allVentas: [Venta]
-  allDetalleVentas: [DetalleVenta]
+# =======================================
+# TYPES - Representan entidades de dominio
+# =======================================
+type Categoria { 
+  id: ID! 
+  nombre: String! 
+  descripcion: String 
 }
 
+type Producto { 
+  id: ID! 
+  nombre: String! 
+  descripcion: String 
+  imagenUrl: String 
+  precio: Float! 
+  stock: Int 
+  categoria: Categoria 
+}
+
+type Cliente { 
+  id: ID! 
+  nombre: String! 
+  correo: String! 
+  telefono: String 
+}
+
+type Usuario { 
+  id: ID! 
+  nombre: String! 
+  correo: String! 
+  contrasena: String! 
+}
+
+type Venta { 
+  id: ID! 
+  cliente: Cliente! 
+  fecha: String! 
+  total: Float! 
+  detalles: [DetalleVenta!]!
+}
+
+type DetalleVenta { 
+  id: ID! 
+  producto: Producto! 
+  cantidad: Int! 
+  precioUnitario: Float! 
+  subtotal: Float!
+}
+
+# =======================================
+# INPUTS - Para mutations limpias
+# =======================================
+input CategoriaInput {
+  nombre: String!
+  descripcion: String
+}
+
+input ProductoInput {
+  nombre: String!
+  descripcion: String
+  imagenUrl: String
+  precio: Float!
+  stock: Int
+  categoriaId: ID!
+}
+
+input ClienteInput {
+  nombre: String!
+  correo: String!
+  telefono: String
+}
+
+input UsuarioInput {
+  nombre: String!
+  correo: String!
+  contrasena: String!
+}
+
+input VentaInput {
+  clienteId: ID!
+  fecha: String
+  detalles: [DetalleVentaInput!]!
+}
+
+input DetalleVentaInput {
+  productoId: ID!
+  cantidad: Int!
+  precioUnitario: Float!
+}
+
+# =======================================
+# QUERIES - Solo lo esencial
+# =======================================
+type Query {
+  categorias: [Categoria!]!
+  productos: [Producto!]!
+  clientes: [Cliente!]!
+  usuarios: [Usuario!]!
+  ventas: [Venta!]!
+}
+
+# =======================================
+# MUTATIONS - Operaciones atómicas
+# =======================================
 type Mutation {
-  createCategoria(nombre: String!, descripcion: String): Categoria
-  updateCategoria(id: ID!, nombre: String, descripcion: String): Categoria
-  deleteCategoria(id: ID!): Boolean
+  # Categorías
+  createCategoria(input: CategoriaInput!): Categoria!
+  updateCategoria(id: ID!, input: CategoriaInput!): Categoria!
+  deleteCategoria(id: ID!): Boolean!
 
-  createProducto(nombre: String!, descripcion: String, imagenUrl: String, precio: Float!, stock: Int, categoriaId: ID!): Producto
-  updateProducto(id: ID!, nombre: String, descripcion: String, imagenUrl: String, precio: Float, stock: Int, categoriaId: ID): Producto
-  deleteProducto(id: ID!): Boolean
+  # Productos
+  createProducto(input: ProductoInput!): Producto!
+  updateProducto(id: ID!, input: ProductoInput!): Producto!
+  deleteProducto(id: ID!): Boolean!
 
-  createCliente(nombre: String!, correo: String!, telefono: String): Cliente
-  updateCliente(id: ID!, nombre: String, correo: String, telefono: String): Cliente
-  deleteCliente(id: ID!): Boolean
+  # Clientes
+  createCliente(input: ClienteInput!): Cliente!
+  updateCliente(id: ID!, input: ClienteInput!): Cliente!
+  deleteCliente(id: ID!): Boolean!
 
-  createUsuario(nombre: String!, correo: String!, contrasena: String!): Usuario
-  updateUsuario(id: ID!, nombre: String, correo: String, contrasena: String): Usuario
-  deleteUsuario(id: ID!): Boolean
+  # Usuarios
+  createUsuario(input: UsuarioInput!): Usuario!
+  updateUsuario(id: ID!, input: UsuarioInput!): Usuario!
+  deleteUsuario(id: ID!): Boolean!
 
-  createVenta(clienteId: ID!, fecha: String, total: Float!): Venta
-  updateVenta(id: ID!, clienteId: ID, fecha: String, total: Float): Venta
-  deleteVenta(id: ID!): Boolean
-
-  createDetalleVenta(ventaId: ID!, productoId: ID!, cantidad: Int!, precioUnitario: Float!): DetalleVenta
-  updateDetalleVenta(id: ID!, ventaId: ID, productoId: ID, cantidad: Int, precioUnitario: Float): DetalleVenta
-  deleteDetalleVenta(id: ID!): Boolean
+  # Ventas (Operación transaccional completa)
+  createVenta(input: VentaInput!): Venta!
+  updateVenta(id: ID!, input: VentaInput!): Venta!
+  deleteVenta(id: ID!): Boolean!
 }

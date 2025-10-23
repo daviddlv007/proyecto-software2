@@ -38,6 +38,21 @@ release.properties
 # Node modules (si tienes frontend)
 node_modules/
 npm-debug.log*
+dist/
+build/
 
 # Environment variables
 .env
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Test reports
+report.html
+*.xml

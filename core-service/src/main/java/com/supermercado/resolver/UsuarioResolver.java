@@ -6,6 +6,7 @@ import org.springframework.graphql.data.method.annotation.Argument;
 import java.util.List;
 import com.supermercado.model.Usuario;
 import com.supermercado.repository.UsuarioRepository;
+import com.supermercado.input.UsuarioInput;
 
 @Controller
 public class UsuarioResolver {
@@ -16,25 +17,25 @@ public class UsuarioResolver {
     }
 
     @QueryMapping
-    public List<Usuario> allUsuarios() {
+    public List<Usuario> usuarios() {
         return repository.findAll();
     }
 
     @MutationMapping
-    public Usuario createUsuario(@Argument String nombre, @Argument String correo, @Argument String contrasena) {
+    public Usuario createUsuario(@Argument UsuarioInput input) {
         Usuario obj = new Usuario();
-        obj.setNombre(nombre);
-        obj.setCorreo(correo);
-        obj.setContrasena(contrasena);
+        obj.setNombre(input.getNombre());
+        obj.setCorreo(input.getCorreo());
+        obj.setContrasena(input.getContrasena());
         return repository.save(obj);
     }
 
     @MutationMapping
-    public Usuario updateUsuario(@Argument Long id, @Argument String nombre, @Argument String correo, @Argument String contrasena) {
+    public Usuario updateUsuario(@Argument Long id, @Argument UsuarioInput input) {
         Usuario obj = repository.findById(id).orElseThrow();
-        if (nombre != null) obj.setNombre(nombre);
-        if (correo != null) obj.setCorreo(correo);
-        if (contrasena != null) obj.setContrasena(contrasena);
+        if (input.getNombre() != null) obj.setNombre(input.getNombre());
+        if (input.getCorreo() != null) obj.setCorreo(input.getCorreo());
+        if (input.getContrasena() != null) obj.setContrasena(input.getContrasena());
         return repository.save(obj);
     }
 
