@@ -1,0 +1,55 @@
+# ============================================
+# DL SERVICE - Dockerfile para DESARROLLO
+# Node.js con ts-node-dev para hot reload
+# Debian slim (necesario para TensorFlow.js)
+# ============================================
+
+FROM node:20-slim
+
+# Metadata
+LABEL service="dl-service-dev"
+LABEL description="Deep Learning API - Development with Hot Reload"
+
+# Variables de entorno
+ENV NODE_ENV=development \
+    PORT=8082 \
+    NODE_OPTIONS="--max-old-space-size=384" \
+    DEBIAN_FRONTEND=noninteractive
+
+# Instalar dependencias del sistema para TensorFlow.js y canvas
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    libcairo2-dev \
+    libjpeg-dev \
+    libpango1.0-dev \
+    libgif-dev \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copiar package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Instalar todas las dependencias (incluidas dev para ts-node-dev)
+RUN npm ci
+
+# Copiar código (se sobreescribe con volume en docker-compose)
+COPY src ./src
+COPY db ./db
+
+# Crear directorios
+RUN mkdir -p data uploads models
+
+# Exponer puerto
+EXPOSE 8082
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8082/health || exit 1
+
+# Hot reload con ts-node-dev
+CMD ["npm", "run", "dev"]

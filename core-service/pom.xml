@@ -51,6 +51,17 @@
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
+        <!-- PostgreSQL Driver para Docker/Producción -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Actuator para health checks -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+uploads/
+models/*.h5
+models/*.json
+data/*.db
+.env
+*.log
+.DS_Store
+coverage/
+.vscode/
+.idea/

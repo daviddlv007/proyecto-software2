@@ -34,8 +34,27 @@ public class VentaResolver {
     }
     
     @QueryMapping
+    @Transactional(readOnly = true)
     public List<Venta> ventas() {
-        return ventaRepository.findAll();
+        List<Venta> ventas = ventaRepository.findAll();
+        
+        // Inicializar relaciones lazy manualmente para evitar LazyInitializationException
+        // Esto es seguro y no afecta la API GraphQL
+        ventas.forEach(venta -> {
+            if (venta.getCliente() != null) {
+                venta.getCliente().getNombre(); // Forzar carga del cliente
+            }
+            venta.getDetalles().forEach(detalle -> {
+                if (detalle.getProducto() != null) {
+                    detalle.getProducto().getNombre(); // Forzar carga del producto
+                    if (detalle.getProducto().getCategoria() != null) {
+                        detalle.getProducto().getCategoria().getNombre(); // Forzar carga de categoría
+                    }
+                }
+            });
+        });
+        
+        return ventas;
     }
     
     @MutationMapping

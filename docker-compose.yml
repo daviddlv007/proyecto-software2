@@ -1,0 +1,196 @@
+# ============================================
+# DOCKER COMPOSE - Proyecto SW2
+# DESARROLLO: SQLite (ultra liviano, <1GB RAM)
+# PRODUCCIÓN: PostgreSQL (usar docker-compose.prod.yml)
+# ============================================
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  # SQLite files persistentes
+  core-db-data:
+  ml-db-data:
+  dl-db-data:
+  ml-models:
+  dl-models:
+  dl-uploads:
+
+services:
+
+  # ==========================================
+  # CORE SERVICE - Spring Boot + GraphQL
+  # ==========================================
+  core-service:
+    build:
+      context: ./core-service
+      dockerfile: Dockerfile
+    container_name: core-service
+    restart: unless-stopped
+    environment:
+      # H2 en memoria para desarrollo rápido
+      SPRING_DATASOURCE_URL: jdbc:h2:file:/data/core_db;AUTO_SERVER=TRUE
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: 
+      SPRING_DATASOURCE_DRIVER: org.h2.Driver
+      HIBERNATE_DIALECT: org.hibernate.dialect.H2Dialect
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8080
+      H2_CONSOLE_ENABLED: "true"
+      # JVM optimizado para desarrollo
+      JAVA_OPTS: "-Xms64m -Xmx256m -XX:+UseSerialGC"
+    volumes:
+      - core-db-data:/data
+      # Hot reload (opcional, comentar si no usas Spring DevTools)
+      # - ./core-service/src:/app/src
+    networks:
+      - app-network
+    ports:
+      - "${CORE_PORT:-8080}:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 384M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==========================================
+  # ML SERVICE - FastAPI + SQLite
+  # ==========================================
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: ml-service
+    restart: unless-stopped
+    depends_on:
+      core-service:
+        condition: service_healthy
+    environment:
+      # SQLite file-based (sin container DB)
+      DATABASE_URL: sqlite:////data/ml_cache.db
+      CORE_SERVICE_URL: http://core-service:8080/graphql
+      PORT: 8081
+      WORKERS: 1
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ml-db-data:/data
+      - ml-models:/app/models
+      # Hot reload: montar código fuente
+      - ./ml-service/app:/app/app:ro
+    networks:
+      - app-network
+    ports:
+      - "${ML_PORT:-8081}:8081"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 384M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8081/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ==========================================
+  # DL SERVICE - Node.js + TensorFlow.js + SQLite
+  # ==========================================
+  dl-service:
+    build:
+      context: ./dl-service
+      dockerfile: Dockerfile.dev
+    container_name: dl-service
+    restart: unless-stopped
+    depends_on:
+      core-service:
+        condition: service_healthy
+    environment:
+      # Sin DB en desarrollo (cache en memoria)
+      DATABASE_URL: ""
+      CORE_SERVICE_URL: http://core-service:8080/graphql
+      PORT: 8082
+      NODE_ENV: development
+      # Memory optimizado
+      NODE_OPTIONS: "--max-old-space-size=384"
+    volumes:
+      - dl-db-data:/data
+      - dl-models:/app/models
+      - dl-uploads:/app/uploads
+      # Hot reload: montar código fuente
+      - ./dl-service/src:/app/src:ro
+      - ./dl-service/package.json:/app/package.json:ro
+    networks:
+      - app-network
+    ports:
+      - "${DL_PORT:-8082}:8082"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 192M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+
+  # ==========================================
+  # FRONTEND - Vite Dev Server (Hot Reload) 
+  # Moderno y minimalista - 2025
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: frontend
+    restart: unless-stopped
+    depends_on:
+      - core-service
+      - ml-service
+      - dl-service
+    environment:
+      VITE_CORE_API_URL: ${CORE_API_URL:-http://localhost:8080/graphql}
+      VITE_ML_API_URL: ${ML_API_URL:-http://localhost:8081}
+      VITE_DL_API_URL: ${DL_API_URL:-http://localhost:8082}
+    volumes:
+      # Hot reload: montar código fuente
+      - ./frontend/src:/app/src:ro
+      - ./frontend/public:/app/public:ro
+      - ./frontend/index.html:/app/index.html:ro
+      - ./frontend/vite.config.ts:/app/vite.config.ts:ro
+      # node_modules como volumen para performance
+      - /app/node_modules
+    networks:
+      - app-network
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          memory: 192M
+    healthcheck:
+      # Usar wget que es más confiable que nc en BusyBox Alpine
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--timeout=3", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # El servidor de desarrollo puede tardar en arrancar; subir start_period
+      start_period: 30s

@@ -21,7 +21,9 @@ import {
   People,
   Person,
   ShoppingCart,
-  Logout
+  Logout,
+  Psychology,
+  ImageSearch
 } from '@mui/icons-material';
 import { useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -67,7 +69,9 @@ const Layout: React.FC = () => {
     { text: 'Productos', icon: <Inventory />, path: '/productos' },
     { text: 'Clientes', icon: <People />, path: '/clientes' },
     { text: 'Usuarios', icon: <Person />, path: '/usuarios' },
-    { text: 'Ventas', icon: <ShoppingCart />, path: '/ventas' }
+    { text: 'Ventas', icon: <ShoppingCart />, path: '/ventas' },
+    { text: 'Machine Learning', icon: <Psychology />, path: '/machine-learning' },
+    { text: 'Deep Learning', icon: <ImageSearch />, path: '/deep-learning' }
   ];
 
   const drawer = (

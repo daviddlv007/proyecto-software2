@@ -16,6 +16,8 @@ import ProductosPage from './pages/ProductosPage';
 import ClientesPage from './pages/ClientesPage';
 import UsuariosPage from './pages/UsuariosPage';
 import VentasPage from './pages/VentasPage';
+import MachineLearningPage from './pages/MachineLearningPage';
+import DeepLearningPage from './pages/DeepLearningPage';
 
 const theme = createTheme({
   palette: {
@@ -52,6 +54,8 @@ function App() {
                 <Route path="clientes" element={<ClientesPage />} />
                 <Route path="usuarios" element={<UsuariosPage />} />
                 <Route path="ventas" element={<VentasPage />} />
+                <Route path="machine-learning" element={<MachineLearningPage />} />
+                <Route path="deep-learning" element={<DeepLearningPage />} />
               </Route>
             </Routes>
           </Router>

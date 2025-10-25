@@ -1,0 +1,31 @@
+# ============================================
+# FRONTEND - Dockerfile para DESARROLLO
+# Vite dev server con hot reload
+# Moderno, minimalista y eficiente (2025)
+# ============================================
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copiar package files
+COPY package*.json ./
+
+# Instalar dependencias
+RUN npm ci
+
+# Instalar wget para healthcheck (más confiable que nc en Alpine)
+RUN apk add --no-cache wget
+
+# Copiar código (se sobreescribe con volume en docker-compose)
+COPY . .
+
+# Exponer puerto de Vite
+EXPOSE 5173
+
+# Health check usando wget (más confiable que nc en BusyBox Alpine)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider --timeout=3 http://localhost:5173/ || exit 1
+
+# Vite dev server con hot reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
