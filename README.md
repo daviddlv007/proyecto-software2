@@ -684,9 +684,89 @@ docker-compose logs -f core-service
 
 ### 2. Gestión de Inventario
 - CRUD completo de productos
-- Control de stock
+- **Control de stock automático** con reglas de negocio
 - Categorización
 - Búsqueda y filtros
+
+### 📦 Reglas de Negocio - Stock
+
+El sistema implementa **gestión automática de inventario** en todas las operaciones de ventas:
+
+#### ✅ Crear Venta (`createVenta`)
+- **Valida stock disponible** antes de confirmar la venta
+- **Descuenta stock** automáticamente de cada producto vendido
+- **Lanza error** si el stock es insuficiente con mensaje descriptivo
+- **Transacción atómica**: garantiza consistencia (o todo se aplica o nada)
+
+```graphql
+# Ejemplo: Si el producto tiene stock=10 y vendes 3 unidades
+mutation {
+  createVenta(input: {
+    clienteId: 1
+    fecha: "2024-01-15T10:30:00"
+    detalles: [{
+      productoId: 5
+      cantidad: 3      # ✅ Stock queda en 7
+      precioUnitario: 2.50
+    }]
+  }) { id total }
+}
+
+# ❌ Error si intentas vender más de lo disponible
+mutation {
+  createVenta(input: {
+    clienteId: 1
+    fecha: "2024-01-15T10:30:00"
+    detalles: [{
+      productoId: 5
+      cantidad: 15     # ❌ "Stock insuficiente para producto 'X'. Disponible: 7, Solicitado: 15"
+      precioUnitario: 2.50
+    }]
+  }) { id total }
+}
+```
+
+#### 🔄 Actualizar Venta (`updateVenta`)
+- **Restaura stock** de los productos de la venta anterior
+- **Valida y descuenta** stock de los productos nuevos
+- **Rollback automático** si falla la validación en algún producto
+- **Transacción atómica**: mantiene consistencia de inventario
+
+```graphql
+# Ejemplo: Cambiar cantidad vendida
+mutation {
+  updateVenta(id: 10, input: {
+    clienteId: 1
+    fecha: "2024-01-15T10:30:00"
+    detalles: [{
+      productoId: 5
+      cantidad: 5      # Se devuelven 3 unidades (de la venta original) y se descuentan 5 nuevas
+      precioUnitario: 2.50
+    }]
+  }) { id total }
+}
+```
+
+#### 🗑️ Eliminar Venta (`deleteVenta`)
+- **Restaura stock** automáticamente de todos los productos vendidos
+- Devuelve las unidades al inventario
+- **Transacción atómica**: garantiza que no se pierda inventario
+
+```graphql
+# Ejemplo: Cancelar venta
+mutation {
+  deleteVenta(id: 10)  # ✅ Stock de productos restaurado automáticamente
+}
+```
+
+#### 🔒 Garantías del Sistema
+- ✅ **Consistencia**: Las transacciones son atómicas (todo o nada)
+- ✅ **Integridad**: Imposible vender más de lo disponible
+- ✅ **Trazabilidad**: Errores descriptivos con nombres de productos y cantidades
+- ✅ **Recuperación**: Rollback automático ante errores
+- ✅ **Concurrencia**: Gestión segura con `@Transactional`
+
+---
 
 ### 3. Machine Learning
 - Predicción de precios óptimos

@@ -65,11 +65,28 @@ public class VentaResolver {
             .orElseThrow(() -> new RuntimeException("Cliente no encontrado")));
         venta.setFecha(input.getFechaAsLocalDateTime());
         
-        // Agregar detalles
+        // Agregar detalles y descontar stock
         for (DetalleVentaInput detalleInput : input.getDetalles()) {
+            var producto = productoRepository.findById(detalleInput.getProductoIdAsLong())
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+            
+            // VALIDACIÓN: Verificar stock disponible
+            if (producto.getStock() == null) {
+                throw new RuntimeException("Producto '" + producto.getNombre() + "' no tiene stock configurado");
+            }
+            
+            if (producto.getStock() < detalleInput.getCantidad()) {
+                throw new RuntimeException("Stock insuficiente para producto '" + producto.getNombre() + 
+                    "'. Disponible: " + producto.getStock() + ", Solicitado: " + detalleInput.getCantidad());
+            }
+            
+            // REGLA DE NEGOCIO: Descontar stock
+            producto.setStock(producto.getStock() - detalleInput.getCantidad());
+            productoRepository.save(producto);
+            
+            // Crear detalle de venta
             DetalleVenta detalle = new DetalleVenta();
-            detalle.setProducto(productoRepository.findById(detalleInput.getProductoIdAsLong())
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado")));
+            detalle.setProducto(producto);
             detalle.setCantidad(detalleInput.getCantidad());
             detalle.setPrecioUnitario(detalleInput.getPrecioUnitario());
             
@@ -87,24 +104,59 @@ public class VentaResolver {
         Venta venta = ventaRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Venta no encontrada"));
         
+        // REGLA DE NEGOCIO: Devolver stock de los detalles anteriores
+        List<DetalleVenta> detallesAnteriores = new ArrayList<>(venta.getDetalles());
+        for (DetalleVenta detalleAnterior : detallesAnteriores) {
+            var producto = detalleAnterior.getProducto();
+            producto.setStock(producto.getStock() + detalleAnterior.getCantidad());
+            productoRepository.save(producto);
+        }
+        
         // Actualizar datos básicos
         venta.setCliente(clienteRepository.findById(input.getClienteIdAsLong())
             .orElseThrow(() -> new RuntimeException("Cliente no encontrado")));
         venta.setFecha(input.getFechaAsLocalDateTime());
         
         // Limpiar detalles existentes de manera segura
-        // Usar removeAll en lugar de clear para evitar problemas con JPA
-        List<DetalleVenta> detallesActuales = new ArrayList<>(venta.getDetalles());
-        detallesActuales.forEach(detalle -> {
+        detallesAnteriores.forEach(detalle -> {
             detalle.setVenta(null);
         });
         venta.getDetalles().clear();
         
-        // Agregar nuevos detalles
+        // Agregar nuevos detalles y descontar stock
         for (DetalleVentaInput detalleInput : input.getDetalles()) {
+            var producto = productoRepository.findById(detalleInput.getProductoIdAsLong())
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+            
+            // VALIDACIÓN: Verificar stock disponible
+            if (producto.getStock() == null) {
+                // Rollback: devolver stock de los productos ya procesados
+                for (DetalleVenta detalleAnterior : detallesAnteriores) {
+                    var prod = detalleAnterior.getProducto();
+                    prod.setStock(prod.getStock() - detalleAnterior.getCantidad());
+                    productoRepository.save(prod);
+                }
+                throw new RuntimeException("Producto '" + producto.getNombre() + "' no tiene stock configurado");
+            }
+            
+            if (producto.getStock() < detalleInput.getCantidad()) {
+                // Rollback: devolver stock de los productos ya procesados
+                for (DetalleVenta detalleAnterior : detallesAnteriores) {
+                    var prod = detalleAnterior.getProducto();
+                    prod.setStock(prod.getStock() - detalleAnterior.getCantidad());
+                    productoRepository.save(prod);
+                }
+                throw new RuntimeException("Stock insuficiente para producto '" + producto.getNombre() + 
+                    "'. Disponible: " + producto.getStock() + ", Solicitado: " + detalleInput.getCantidad());
+            }
+            
+            // REGLA DE NEGOCIO: Descontar stock
+            producto.setStock(producto.getStock() - detalleInput.getCantidad());
+            productoRepository.save(producto);
+            
+            // Crear nuevo detalle
             DetalleVenta detalle = new DetalleVenta();
-            detalle.setProducto(productoRepository.findById(detalleInput.getProductoIdAsLong())
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado")));
+            detalle.setProducto(producto);
             detalle.setCantidad(detalleInput.getCantidad());
             detalle.setPrecioUnitario(detalleInput.getPrecioUnitario());
             
@@ -118,8 +170,20 @@ public class VentaResolver {
     }
     
     @MutationMapping
-    public Boolean deleteVenta(@Argument Long id) {
-        ventaRepository.deleteById(id);
+    public boolean deleteVenta(@Argument Long id) {
+        Venta venta = ventaRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Venta no encontrada"));
+        
+        // REGLA DE NEGOCIO: Restaurar stock antes de eliminar la venta
+        for (DetalleVenta detalle : venta.getDetalles()) {
+            var producto = detalle.getProducto();
+            if (producto.getStock() != null) {
+                producto.setStock(producto.getStock() + detalle.getCantidad());
+                productoRepository.save(producto);
+            }
+        }
+        
+        ventaRepository.delete(venta);
         return true;
     }
 }
