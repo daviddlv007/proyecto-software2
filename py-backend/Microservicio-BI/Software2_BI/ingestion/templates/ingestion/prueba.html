@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+{% block title %}Prueba Gemini Chat{% endblock %}
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat con IA</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- 📸 Librería para captura de pantalla -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- 📄 Librería para generar PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    #chat-box { 
+      border:1px solid #ccc; 
+      height:300px; 
+      overflow-y:auto; 
+      padding:10px; 
+      margin-bottom:10px; 
+      background:#f9f9f9; 
+    }
+    .msg-user { color: #2563eb; margin: 5px 0; }
+    .msg-bot  { color: #059669; margin: 5px 0; }
+    .msg-err  { color: #dc2626; margin: 5px 0; }
+    
+    /* 🎨 Estilos para los botones de exportar */
+    #export-buttons {
+      margin-top: 15px;
+      padding: 10px;
+      text-align: center;
+      display: none; /* Oculto por defecto */
+    }
+    
+    .export-btn {
+      margin: 0 10px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .btn-image {
+      background-color: #4CAF50;
+      color: white;
+    }
+    
+    .btn-pdf {
+      background-color: #f44336;
+      color: white;
+    }
+    
+    .btn-email {
+      background-color: #2196F3;
+      color: white;
+    }
+    
+    .export-btn:hover {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <h2>Generar gráfico con IA</h2>
+
+  <label for="schema">Selecciona la base de datos:</label>
+  <select id="schema" required>
+      {% for a in archivos %}
+      <option value="{{ a.schema }}">{{ a.file }}</option>
+      {% endfor %}
+  </select>
+
+  <div id="chat-box"></div>
+
+  <input type="text" id="user-input" placeholder="Escribe tu mensaje..." />
+  <button id="send-btn">Enviar</button>
+
+  <!-- 🎨 CONTENEDOR DEL GRÁFICO -->
+  <div id="grafico-container" style="margin-top:20px;">
+    <canvas id="miGrafico"></canvas>
+  </div>
+
+  <!-- 📤 BOTONES DE EXPORTAR (Aparecen solo cuando hay gráfico) -->
+  <div id="export-buttons">
+    <button class="export-btn btn-image" onclick="exportarImagen()">
+      📷 Exportar como Imagen
+    </button>
+    <button class="export-btn btn-pdf" onclick="exportarPDF()">
+      📄 Exportar como PDF
+    </button>
+    <button class="export-btn btn-email" onclick="enviarPorEmailDirecto()">
+      📧 Enviar PDF por Email
+    </button>
+  </div>
+
+  <!-- 📧 MODAL SIMPLE PARA EMAIL -->
+  <div id="email-modal-simple" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 350px;">
+      <h3>📧 Enviar Gráfico por Email</h3>
+      
+      <div style="margin: 15px 0;">
+        <label>Email destinatario:</label>
+        <input type="email" id="email-destinatario-simple" placeholder="ejemplo@correo.com" style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px;">
+      </div>
+      
+      <div style="text-align: center; margin-top: 25px;">
+        <button onclick="confirmarEnvioEmail()" style="background: #4CAF50; color: white; padding: 12px 25px; border: none; border-radius: 5px; margin: 0 10px; font-weight: bold;">
+          📤 Enviar PDF
+        </button>
+        <button onclick="cerrarModalSimple()" style="background: #f44336; color: white; padding: 12px 25px; border: none; border-radius: 5px; margin: 0 10px; font-weight: bold;">
+          ❌ Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const chatBox = document.getElementById("chat-box");
+  const userInput = document.getElementById("user-input");
+  const sendBtn = document.getElementById("send-btn");
+  const schemaSelect = document.getElementById("schema");
+  const exportButtons = document.getElementById("export-buttons");
+  let chartInstance = null;
+  let currentChartData = null; // Para guardar info del gráfico actual
+
+  function addMessage(type, text) {
+    const p = document.createElement("p");
+    p.className = type === "user" ? "msg-user" : (type === "bot" ? "msg-bot" : "msg-err");
+    p.textContent = (type === "user" ? "Tú: " : type === "bot" ? "IA: " : "Error: ") + text;
+    chatBox.appendChild(p);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+  }
+
+  function renderChart(datos, tipo, columns) {
+    if (!datos || !datos.length || !columns || columns.length < 2) {
+      addMessage("err", "No hay datos suficientes para graficar.");
+      // 🚫 Ocultar botones si no hay gráfico
+      exportButtons.style.display = "none";
+      return;
+    }
+
+    const [catKey, valKey] = columns;
+    const etiquetas = datos.map(row => row[0]);
+    const valores = datos.map(row => row[1]);
+
+    if (chartInstance) chartInstance.destroy();
+    const ctx = document.getElementById('miGrafico');
+
+    chartInstance = new Chart(ctx, {
+      type: tipo || 'bar',
+      data: {
+        labels: etiquetas,
+        datasets: [{
+          label: valKey || 'Resultados',
+          data: valores,
+          backgroundColor: [
+            'rgba(255, 99, 132, 0.8)',
+            'rgba(54, 162, 235, 0.8)',
+            'rgba(255, 205, 86, 0.8)',
+            'rgba(75, 192, 192, 0.8)',
+            'rgba(153, 102, 255, 0.8)',
+            'rgba(255, 159, 64, 0.8)'
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: `${valKey} por ${catKey}`,
+            font: { size: 16 }
+          }
+        }
+      }
+    });
+
+    // 💾 Guardar info del gráfico actual
+    currentChartData = {
+      tipo: tipo,
+      titulo: `${valKey} por ${catKey}`,
+      datos: datos,
+      columns: columns
+    };
+
+    // ✅ Mostrar botones de exportar
+    exportButtons.style.display = "block";
+    addMessage("bot", "✅ Gráfico generado. Puedes exportarlo como imagen o PDF.");
+  }
+
+  // 📷 FUNCIÓN PARA EXPORTAR COMO IMAGEN
+  function exportarImagen() {
+    if (!chartInstance) {
+      addMessage("err", "No hay gráfico para exportar.");
+      return;
+    }
+
+    addMessage("bot", "📷 Generando imagen...");
+    
+    const container = document.getElementById('grafico-container');
+    
+    html2canvas(container, {
+      backgroundColor: '#ffffff',
+      scale: 1, // Mejor calidad
+      logging: false
+    }).then(canvas => {
+      // Crear link de descarga
+      const link = document.createElement('a');
+      link.download = `grafico_${currentChartData.titulo.replace(/\s+/g, '_')}_${new Date().getTime()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      addMessage("bot", "✅ Imagen descargada exitosamente.");
+    }).catch(err => {
+      addMessage("err", "Error al generar imagen: " + err.message);
+    });
+  }
+
+  // 📄 FUNCIÓN PARA EXPORTAR COMO PDF
+  function exportarPDF() {
+    if (!chartInstance) {
+      addMessage("err", "No hay gráfico para exportar.");
+      return;
+    }
+
+    addMessage("bot", "📄 Generando PDF...");
+    
+    const container = document.getElementById('grafico-container');
+    
+    html2canvas(container, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      logging: false
+    }).then(canvas => {
+      // Crear PDF
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('landscape'); // Horizontal para mejor vista del gráfico
+      
+      // Título del PDF
+      pdf.setFontSize(20);
+      pdf.text(currentChartData.titulo, 20, 30);
+      
+      // Fecha de generación
+      pdf.setFontSize(12);
+      pdf.text(`Generado el: ${new Date().toLocaleDateString()}`, 20, 45);
+      
+      // Añadir imagen del gráfico
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 250; // Ancho en el PDF
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 20, 60, imgWidth, imgHeight);
+      
+      // Guardar PDF
+      const fileName = `grafico_${currentChartData.titulo.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`;
+      pdf.save(fileName);
+      
+      addMessage("bot", "✅ PDF descargado exitosamente.");
+    }).catch(err => {
+      addMessage("err", "Error al generar PDF: " + err.message);
+    });
+  }
+
+  // 📧 FUNCIONES PARA EMAIL SIMPLIFICADO
+  function enviarPorEmailDirecto() {
+    if (!chartInstance) {
+      addMessage("err", "No hay gráfico para enviar.");
+      return;
+    }
+    
+    document.getElementById('email-modal-simple').style.display = 'block';
+    document.getElementById('email-destinatario-simple').focus();
+  }
+
+  function cerrarModalSimple() {
+    document.getElementById('email-modal-simple').style.display = 'none';
+    document.getElementById('email-destinatario-simple').value = '';
+  }
+
+ // REEMPLAZAR completamente la función confirmarEnvioEmail() en tu prueba.html:
+
+function confirmarEnvioEmail() {
+  const destinatario = document.getElementById('email-destinatario-simple').value;
+  
+  if (!destinatario) {
+    alert('Por favor ingresa un email');
+    return;
+  }
+  
+  if (!destinatario.includes('@')) {
+    alert('Por favor ingresa un email válido');
+    return;
+  }
+  
+  addMessage("bot", "📧 Generando PDF optimizado y enviando email...");
+  cerrarModalSimple();
+  
+  const container = document.getElementById('grafico-container');
+  
+  html2canvas(container, {
+    backgroundColor: '#ffffff',
+    scale: 1.2, // Reducido para menor tamaño
+    logging: false,
+    useCORS: true,
+    allowTaint: true
+  }).then(canvas => {
+    // Generar PDF optimizado
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('landscape');
+    
+    // Título del PDF
+    pdf.setFontSize(18);
+    pdf.text(currentChartData.titulo, 20, 25);
+    
+    // Fecha de generación
+    pdf.setFontSize(11);
+    pdf.text(`Generado: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 20, 35);
+    
+    // Comprimir imagen antes de añadir al PDF
+    const imgData = canvas.toDataURL('image/jpeg', 0.6); // JPEG con 60% calidad
+    const imgWidth = 180; // Reducido
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    pdf.addImage(imgData, 'JPEG', 20, 45, imgWidth, imgHeight);
+    
+    // Info adicional
+    pdf.setFontSize(9);
+    pdf.text('Software2 BI', 20, pdf.internal.pageSize.height - 15);
+    
+    // Convertir PDF a base64
+    const pdfData = pdf.output('datauristring');
+    const fileName = `grafico_${Date.now()}.pdf`;
+    
+    // Verificar tamaño
+    const sizeInMB = (pdfData.length * 0.75) / (1024 * 1024);
+    console.log(`📊 Tamaño del PDF: ${sizeInMB.toFixed(2)} MB`);
+    
+    if (sizeInMB > 20) {
+      addMessage("err", `❌ PDF muy grande (${sizeInMB.toFixed(2)} MB). Intenta con menos datos.`);
+      return;
+    }
+    
+    // Enviar al backend
+    fetch("{% url 'ingestion:enviar_email' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      body: JSON.stringify({
+        destinatario: destinatario,
+        asunto: `Reporte: ${currentChartData.titulo}`,
+        mensaje: `Hola,\n\nAdjunto el gráfico "${currentChartData.titulo}".\n\nGenerado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}.\n\nSaludos,\nSoftware2 BI`,
+        attachment: pdfData,
+        fileName: fileName,
+        formato: 'pdf'
+      })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+      if (data.success) {
+        addMessage("bot", `✅ PDF enviado exitosamente a ${destinatario}`);
+      } else {
+        addMessage("err", `❌ Error: ${data.error}`);
+      }
+    })
+    .catch(err => {
+      addMessage("err", "❌ Error de conexión: " + err.message);
+    });
+    
+  }).catch(err => {
+    addMessage("err", "❌ Error al generar PDF: " + err.message);
+  });
+}
+  // 🚀 ENVIAR MENSAJE AL CHAT
+  sendBtn.addEventListener("click", () => {
+    const text = userInput.value.trim();
+    if (!text) return;
+
+    const schema = schemaSelect.value;
+    addMessage("user", text);
+    userInput.value = "";
+
+    fetch("{% url 'ingestion:prueba_chat' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      body: JSON.stringify({ schema: schema, mensaje: text })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+      if (data.error) addMessage("err", data.error);
+      if (data.respuesta) addMessage("bot", data.respuesta);
+      if (data.sql) addMessage("bot", "SQL generado: " + data.sql);
+
+      if (data.columns && data.datos && data.datos.length > 0) {
+        renderChart(data.datos, data.grafico, data.columns);
+      }
+    })
+    .catch(err => addMessage("err", String(err)));
+  });
+
+  // ⌨️ PERMITIR ENTER PARA ENVIAR
+  userInput.addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+      sendBtn.click();
+    }
+  });
+
+  // Permitir Enter en el campo de email
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+      const emailInput = document.getElementById('email-destinatario-simple');
+      if (emailInput) {
+        emailInput.addEventListener('keypress', function(event) {
+          if (event.key === 'Enter') {
+            confirmarEnvioEmail();
+          }
+        });
+      }
+    }, 100);
+  });
+</script>
+
+</body>
+</html>
+{% endblock %}

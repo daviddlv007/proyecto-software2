@@ -1,0 +1,13 @@
+<ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
+  {% for item in trail %}
+    {% if not forloop.last and item.url %}
+      <li class="breadcrumb-item text-sm">
+        <a class="opacity-5 text-dark" href="{{ item.url }}">{{ item.label }}</a>
+      </li>
+    {% elif not forloop.last %}
+      <li class="breadcrumb-item text-sm text-dark opacity-75">{{ item.label }}</li>
+    {% else %}
+      <li class="breadcrumb-item text-sm text-dark active" aria-current="page">{{ item.label }}</li>
+    {% endif %}
+  {% endfor %}
+</ol>

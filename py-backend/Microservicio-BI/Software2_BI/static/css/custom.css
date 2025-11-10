@@ -1,0 +1,19 @@
+/* static/css/custom.css */
+body {
+  background: radial-gradient(1200px 600px at 10% -10%, #e7f1ff 0, transparent 60%),
+              radial-gradient(1200px 600px at 110% 10%, #f2fff5 0, transparent 55%);
+}
+
+.auth-card {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.form-control:focus {
+  box-shadow: 0 0 0 .2rem rgba(13,110,253,.25);
+  border-color: #86b7fe;
+}
+
+.btn-primary, .btn-success {
+  border-radius: 10px;
+}

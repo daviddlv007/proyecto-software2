@@ -1,0 +1,50 @@
+{# accounts/templates/registration/login.html #}
+{% extends "base.html" %}
+{% block title %}Entrar{% endblock %}
+{% block content %}
+{% load widget_tweaks %}
+<div class="row justify-content-center">
+  <div class="col-sm-10 col-md-7 col-lg-5">
+    <div class="card shadow-sm auth-card">
+      <div class="card-body p-4">
+        <h1 class="h4 text-center mb-3">Iniciar sesión</h1>
+
+        <form method="post" action="{% url 'login' %}" novalidate>
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+            {{ form.username }}
+            {% for e in form.username.errors %}
+              <div class="invalid-feedback d-block">{{ e }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="mb-2">
+            <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
+            {{ form.password }}
+            {% for e in form.password.errors %}
+              <div class="invalid-feedback d-block">{{ e }}</div>
+            {% endfor %}
+          </div>
+
+          {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+          {% endif %}
+
+          <button class="btn btn-primary w-100 mt-2" type="submit">Entrar</button>
+        </form>
+
+        <hr class="my-4">
+        <p class="text-center mb-0">
+          ¿No tienes cuenta? <a href="{% url 'signup' %}">Regístrate</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

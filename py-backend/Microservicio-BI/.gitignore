@@ -1,0 +1,52 @@
+# === Entornos virtuales (en cualquier carpeta) ===
+**/.venv/**
+**/venv/**
+**/env/**
+ENV/
+
+# === Python cache/build ===
+**/__pycache__/**
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+coverage.xml
+htmlcov/
+.tox/
+
+# === Config/secrets locales ===
+.env
+.env.*
+*.log
+
+# === DBs locales ===
+db.sqlite3
+*.sqlite3
+
+# === Archivos generados de Django ===
+# Fuente de estáticos (p. ej. /static) sí se versiona.
+# Lo colectado (STATIC_ROOT), NO.
+staticfiles/
+**/staticfiles/**
+
+# Subidas de usuario (MEDIA_ROOT) — NO versionar
+media/
+**/media/**
+
+# === IDE / SO ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# === Node (por si acaso) ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

@@ -1,0 +1,97 @@
+{# accounts/templates/dashboard.html #}
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Mis Archivos Subidos</h2>
+  <a href="{% url 'ingestion:upload' %}" class="btn btn-primary">+ Subir Nuevo Archivo</a>
+</div>
+
+<ul class="list-group list-group-flush">
+  {% for s in sources %}
+    <li class="list-group-item">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          <div class="d-flex align-items-center mb-2">
+            <strong class="me-2">{{ s.name }}</strong>
+            <span class="badge bg-secondary">{{ s.kind }}</span>
+            {% if s.diagramas_count > 0 %}
+              <span class="badge bg-success ms-2">{{ s.diagramas_count }} diagrama{{ s.diagramas_count|pluralize }}</span>
+            {% endif %}
+          </div>
+          <small class="text-muted">
+            Esquema: {{ s.internal_schema }} — Tabla: {{ s.internal_table }}
+            <br>
+            {% if s.upload %}
+              Filas: {{ s.upload.rows_ingested|default:0 }} | Columnas: {{ s.upload.columns|length|default:0 }}
+            {% endif %}
+          </small>
+        </div>
+        
+        <div class="btn-group" role="group">
+          <!-- NUEVO: Botón principal para dashboard de diagramas -->
+          <a href="{% url 'ingestion:dashboard_view' s.id %}" class="btn btn-primary btn-sm">
+            📊 Ver Dashboard
+          </a>
+
+          <a href="{% url 'ingestion:drag_drop' s.id %}" class="btn btn-outline-warning btn-sm">
+            🖱️ Drag & Drop
+          </a>
+          
+          <!-- Botón para chat directo (funcionalidad existente) -->
+          <a href="{% url 'ingestion:chart' s.id %}" class="btn btn-outline-info btn-sm">
+            📈 Gráfico Simple
+          </a>
+          
+          <!-- Botones existentes -->
+          <a href="{% url 'ingestion:download_schema' source_id=s.id %}" class="btn btn-outline-secondary btn-sm">
+              📥 Download Schema
+          </a>
+          
+          <!-- Botón eliminar como formulario separado -->
+        </div>
+      </div>
+      
+      <!-- Formulario de eliminación en línea separada -->
+      <div class="mt-2">
+        <form method="post" action="{% url 'ingestion:delete_source' source_id=s.id %}" 
+              onsubmit="return confirm('¿Seguro que quieres eliminar este archivo y sus datos?');" 
+              class="d-inline">
+          {% csrf_token %}
+          <button class="btn btn-outline-danger btn-sm">🗑 Eliminar</button>
+        </form>
+        
+        <!-- Info adicional si hay diagramas -->
+        {% if s.diagramas_count > 0 %}
+          <small class="text-success ms-3">
+            ✅ Dashboard disponible con {{ s.diagramas_count }} gráfico{{ s.diagramas_count|pluralize }} generado{{ s.diagramas_count|pluralize }}
+          </small>
+        {% else %}
+          <small class="text-muted ms-3">
+            💡 Sube este archivo para generar dashboard automático con 3 gráficos
+          </small>
+        {% endif %}
+      </div>
+    </li>
+  {% empty %}
+    <li class="list-group-item text-muted text-center py-4">
+      <h5>No hay archivos subidos aún</h5>
+      <p>Sube tu primer archivo CSV, Excel o SQL para comenzar</p>
+      <a href="{% url 'ingestion:upload' %}" class="btn btn-primary">+ Subir Primer Archivo</a>
+    </li>
+  {% endfor %}
+</ul>
+
+<!-- Información adicional -->
+{% if sources %}
+<div class="mt-4 p-3 bg-light rounded">
+  <h6>💡 Cómo usar el sistema:</h6>
+  <ul class="mb-0 small">
+    <li><strong>Dashboard:</strong> Ve todos los gráficos automáticos + chat IA para crear nuevos</li>
+    <li><strong>Gráfico Simple:</strong> Vista básica del archivo con gráfico estándar</li>
+    <li><strong>Schema:</strong> Descarga estructura SQL del archivo</li>
+  </ul>
+</div>
+{% endif %}
+
+{% endblock %}

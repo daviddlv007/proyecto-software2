@@ -1,0 +1,43 @@
+{# prep/templates/prep/prep_schema_index.html #}
+{% extends "base.html" %}
+{% block title %}Esquemas disponibles{% endblock %}
+{% block content %}
+<div class="main-card mb-3 card">
+  <div class="card-body">
+    <h3 class="card-title">Esquemas disponibles</h3>
+    {% if items %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Archivo</th>
+          <th>Schema</th>
+          <th># Tablas</th>
+          <th>Filas aprox.</th>
+          <th>Tamaño</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for it in items %}
+        <tr>
+          <td>{{ it.file }}</td>
+          <td><code>{{ it.schema }}</code></td>
+          <td>{{ it.table_count }}</td>
+          <td>{{ it.approx_rows }}</td>
+          <td>{{ it.total_size|filesizeformat }}</td>
+          <td>
+            <a class="btn btn-sm btn-primary" href="{% url 'prep:picker' it.schema %}">
+              Ver tablas
+            </a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p>No tienes esquemas cargados aún.</p>
+      <a href="{% url 'ingestion:upload' %}" class="btn btn-primary">Subir archivo</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

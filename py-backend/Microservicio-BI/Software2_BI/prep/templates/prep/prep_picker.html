@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Preparación de datos{% endblock %}
+{% block content %}
+<div class="card p-3">
+  <h3 class="mb-3">Selecciona un dataset</h3>
+
+  {% if selected_schema %}
+    <h5>Tablas en <code>{{ selected_schema }}</code></h5>
+    <ul class="list-group">
+      {% for t in tables %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ t }}</span>
+          <a class="btn btn-sm btn-primary"
+             href="{% url 'prep:editor' selected_schema t %}">
+            Ir al editor
+          </a>
+        </li>
+      {% empty %}
+        <li class="list-group-item">No hay tablas.</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</div>
+{% endblock %}

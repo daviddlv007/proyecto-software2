@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Crear KPI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="mb-0">Crear Nuevo KPI</h6>
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <label for="{{ form.name.id_for_label }}" class="form-label">Nombre del KPI</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                <div class="text-danger text-sm">{{ form.name.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <label for="{{ form.description.id_for_label }}" class="form-label">Descripción</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                <div class="text-danger text-sm">{{ form.description.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- ✅ SECCIÓN ACTUALIZADA: Fuente de datos y tabla -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.data_source.id_for_label }}" class="form-label">Fuente de Datos</label>
+                {{ form.data_source }}
+                {% if form.data_source.errors %}
+                <div class="text-danger text-sm">{{ form.data_source.errors.0 }}</div>
+                {% endif %}
+                <small class="form-text text-muted">Selecciona la fuente de datos (dataset cargado)</small>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.table_name.id_for_label }}" class="form-label">Tabla Específica</label>
+                {{ form.table_name }}
+                {% if form.table_name.errors %}
+                <div class="text-danger text-sm">{{ form.table_name.errors.0 }}</div>
+                {% endif %}
+                <small class="form-text text-muted">Tabla específica dentro de la fuente de datos</small>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.metric_type.id_for_label }}" class="form-label">Tipo de Métrica</label>
+                {{ form.metric_type }}
+                {% if form.metric_type.errors %}
+                <div class="text-danger text-sm">{{ form.metric_type.errors.0 }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.column_name.id_for_label }}" class="form-label">Columna a Medir</label>
+                {{ form.column_name }}
+                {% if form.column_name.errors %}
+                <div class="text-danger text-sm">{{ form.column_name.errors.0 }}</div>
+                {% endif %}
+                <small class="form-text text-muted">Solo se muestran columnas numéricas válidas para KPIs</small>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12">
+                <button type="submit" class="btn btn-success">
+                  <i class="material-symbols-rounded me-2">save</i>Crear KPI
+                </button>
+                <a href="{% url 'notifications:dashboard' %}" class="btn btn-secondary">
+                  <i class="material-symbols-rounded me-2">arrow_back</i>Cancelar
+                </a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const dataSourceSelect = document.getElementById("id_data_source");
+    const tableSelect = document.getElementById("id_table_name");
+    const columnSelect = document.getElementById("id_column_name");
+
+    // Cuando cambia la fuente de datos
+    dataSourceSelect.addEventListener("change", function () {
+        const dataSourceId = this.value;
+
+        // Limpiar selecciones dependientes
+        tableSelect.innerHTML = '<option value="">Selecciona una fuente de datos primero</option>';
+        columnSelect.innerHTML = '<option value="">Selecciona una tabla primero</option>';
+        tableSelect.disabled = true;
+        columnSelect.disabled = true;
+
+        // Limpiar mensajes de información anteriores
+        const existingTableInfo = tableSelect.parentNode.querySelector(".table-info");
+        if (existingTableInfo) {
+            existingTableInfo.remove();
+        }
+        const existingColumnInfo = columnSelect.parentNode.querySelector(".column-info");
+        if (existingColumnInfo) {
+            existingColumnInfo.remove();
+        }
+
+        if (!dataSourceId) {
+            return;
+        }
+
+        // Mostrar indicador de carga
+        tableSelect.innerHTML = '<option value="">Cargando tablas...</option>';
+
+        fetch(`/notifications/ajax/tables/?data_source_id=${dataSourceId}`)
+            .then((response) => response.json())
+            .then((data) => {
+                tableSelect.innerHTML = "";
+
+                if (data.error) {
+                    tableSelect.innerHTML = `<option value="">Error: ${data.error}</option>`;
+                    return;
+                }
+
+                if (data.tables.length === 0) {
+                    tableSelect.innerHTML = '<option value="">No hay tablas disponibles</option>';
+                    return;
+                }
+
+                // Agregar opción por defecto
+                tableSelect.innerHTML = '<option value="">Selecciona una tabla</option>';
+
+                // Agregar tablas
+                data.tables.forEach(function (table) {
+                    const option = document.createElement("option");
+                    option.value = table;
+                    option.textContent = table;
+                    tableSelect.appendChild(option);
+                });
+
+                tableSelect.disabled = false;
+
+                // Mostrar información
+                const info = document.createElement("small");
+                info.className = "form-text text-muted table-info";
+                info.textContent = `${data.tables.length} tabla(s) encontrada(s)`;
+                tableSelect.parentNode.appendChild(info);
+            })
+            .catch((error) => {
+                tableSelect.innerHTML = '<option value="">Error cargando tablas</option>';
+                console.error("Error:", error);
+            });
+    });
+
+    // Cuando cambia la tabla
+    tableSelect.addEventListener("change", function () {
+        const dataSourceId = dataSourceSelect.value;
+        const tableName = this.value;
+
+        // Limpiar columnas
+        columnSelect.innerHTML = '<option value="">Selecciona una tabla primero</option>';
+        columnSelect.disabled = true;
+
+        // Limpiar mensaje de información anterior
+        const existingColumnInfo = columnSelect.parentNode.querySelector(".column-info");
+        if (existingColumnInfo) {
+            existingColumnInfo.remove();
+        }
+
+        if (!dataSourceId || !tableName) {
+            return;
+        }
+
+        // Mostrar indicador de carga
+        columnSelect.innerHTML = '<option value="">Cargando columnas...</option>';
+
+        fetch(`/notifications/ajax/columns-by-table/?data_source_id=${dataSourceId}&table_name=${tableName}`)
+            .then((response) => response.json())
+            .then((data) => {
+                columnSelect.innerHTML = "";
+                columnSelect.disabled = false;
+
+                if (data.error) {
+                    columnSelect.innerHTML = `<option value="">Error: ${data.error}</option>`;
+                    return;
+                }
+
+                if (data.columns.length === 0) {
+                    columnSelect.innerHTML = '<option value="">No hay columnas numéricas en esta tabla</option>';
+                    return;
+                }
+
+                // Agregar opción por defecto
+                columnSelect.innerHTML = '<option value="">Selecciona una columna</option>';
+
+                // Agregar columnas numéricas
+                data.columns.forEach(function (column) {
+                    const option = document.createElement("option");
+                    option.value = column;
+                    option.textContent = column;
+                    columnSelect.appendChild(option);
+                });
+
+                // Mostrar información adicional
+                const info = document.createElement("small");
+                info.className = "form-text text-muted column-info";
+                info.textContent = `${data.columns.length} columna(s) numérica(s) en la tabla "${tableName}"`;
+                columnSelect.parentNode.appendChild(info);
+            })
+            .catch((error) => {
+                columnSelect.innerHTML = '<option value="">Error cargando columnas</option>';
+                columnSelect.disabled = false;
+                console.error("Error:", error);
+            });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% load static nav %}
+  <!-- Sidebar -->
+  <aside class="sidenav navbar navbar-vertical navbar-expand-xs border-radius-lg fixed-start ms-2  bg-transparent my-2" id="sidenav-main">
+    <div class="sidenav-header">
+      <i class="fas fa-times p-3 cursor-pointer text-dark opacity-5 position-absolute end-0 top-0 d-none d-xl-none" aria-hidden="true" id="iconSidenav"></i>
+      <a class="navbar-brand px-4 py-3 m-0" href="https://demos.creative-tim.com/material-dashboard/pages/dashboard" target="_blank">
+        <img src="{% static 'img/logo-ct-dark.png' %}" class="navbar-brand-img" width="26" height="26" alt="main_logo">
+        <span class="ms-1 text-sm text-dark">Creative Tim</span>
+        </a>
+    </div>
+    <hr class="horizontal dark mt-0 mb-2">
+    <div class="collapse navbar-collapse w-auto" id="sidenav-collapse-main">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link text-dark {% active_exact 'dashboard' %}" href="{% url 'dashboard' %}">
+            <i class="material-symbols-rounded opacity-5">dashboard</i>
+            <span class="nav-link-text ms-1">Dashboard</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link text-dark {% active_exact 'ingestion:upload' %}" href="{% url 'ingestion:upload' %}">
+            <i class="material-symbols-rounded opacity-5">upload</i>
+            <span class="nav-link-text ms-1">Subir archivo .sql o .csv</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link text-dark {% active_exact 'ingestion:list' %}" href="{% url 'ingestion:list' %}">
+            <i class="material-symbols-rounded opacity-5">download</i>
+            <span class="nav-link-text ms-1">Lista de archivos subidos</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link text-dark {% active_exact 'ingestion:user_summary' %}" href="{% url 'ingestion:user_summary' %}">
+            <i class="material-symbols-rounded opacity-5">chat</i>
+            <span class="nav-link-text ms-1">Datos de los archivos subidos</span>
+          </a>
+        </li>
+
+
+
+        <li class="nav-item">
+          <a class="nav-link text-dark {% active_namespace 'prep' %}" href="{% url 'prep:schema_index' %}">
+            <i class="material-symbols-rounded opacity-5">database</i>
+            <span class="nav-link-text ms-1">Editar base</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link text-dark {% active_namespace 'notifications' %}" href="{% url 'notifications:dashboard' %}">
+            <i class="material-symbols-rounded opacity-5">notification_important</i>
+            <span class="nav-link-text ms-1">Sistema de Alertas</span>
+          </a>
+        </li>
+
+        <li class="nav-item mt-3">
+          <h6 class="ps-4 ms-2 text-uppercase text-xs text-dark font-weight-bolder opacity-5">Account pages</h6>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-dark" href="../pages/profile.html">
+            <i class="material-symbols-rounded opacity-5">person</i>
+            <span class="nav-link-text ms-1">Profile</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+    </div>
+  </aside>

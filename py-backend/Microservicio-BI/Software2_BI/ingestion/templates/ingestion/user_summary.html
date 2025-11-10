@@ -1,0 +1,586 @@
+{# accounts/templates/dashboard.html #}
+{% extends "base.html" %}
+{% block title %}Resumen de Datos{% endblock %}
+{% block content %}
+
+<style>
+:root {
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --card-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  --border-radius: 12px;
+}
+
+/* Header de la página */
+.page-header {
+  background: var(--primary-gradient);
+  color: white;
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  margin-bottom: 2rem;
+  box-shadow: var(--card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.page-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 2px, transparent 2px),
+    radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 2px, transparent 2px);
+  background-size: 50px 50px;
+}
+
+.page-header-content {
+  position: relative;
+  z-index: 1;
+}
+
+.page-title {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.page-icon {
+  background: rgba(255,255,255,0.2);
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 1.3rem;
+}
+
+/* Card de archivo mejorada */
+.file-card {
+  background: white;
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--card-shadow);
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.file-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f1f5f9;
+  margin-bottom: 1.5rem;
+}
+.data-table thead tr {
+mix-blend-mode: color-dodge;
+}
+
+.file-title {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #1e293b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-icon {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.schema-badge {
+  background: var(--success-gradient);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
+}
+
+/* Botón de descarga mejorado */
+.btn-download {
+  background: var(--success-gradient);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.btn-download:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(79, 172, 254, 0.4);
+  color: white;
+}
+
+/* Card de tabla */
+.table-card {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.table-card:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.table-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #334155;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-name i {
+  color: #667eea;
+}
+
+.table-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-icon {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: bold;
+}
+
+/* Columnas */
+.columns-section {
+  margin-bottom: 1rem;
+}
+
+.columns-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.columns-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.column-tag {
+  background: white;
+  color: #475569;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  border: 1px solid #e2e8f0;
+  font-weight: 500;
+}
+
+/* Preview de tabla mejorada */
+.preview-section {
+  margin-top: 1rem;
+}
+
+.preview-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-wrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: white;
+}
+
+.data-table {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.data-table thead {
+  background: var(--primary-gradient);
+  color: white;
+}
+
+.data-table thead th {
+  font-weight: 600;
+  padding: 12px 16px;
+  border: none;
+  white-space: nowrap;
+}
+
+.data-table tbody td {
+  padding: 10px 16px;
+  border-color: #f1f5f9;
+}
+
+.data-table tbody tr {
+  transition: background 0.2s ease;
+}
+
+.data-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* Estado vacío */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: var(--border-radius);
+  border: 2px dashed #cbd5e1;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  color: #cbd5e1;
+  margin-bottom: 1rem;
+}
+
+.empty-title {
+  font-size: 1.3rem;
+  color: #475569;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.empty-text {
+  color: #64748b;
+  margin-bottom: 1.5rem;
+}
+
+.btn-upload {
+  background: var(--primary-gradient);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-upload:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  color: white;
+}
+
+/* Separador */
+.file-separator {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+  margin: 2rem 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-header {
+    padding: 1.5rem;
+  }
+  
+  .page-title {
+    font-size: 1.4rem;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .file-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .table-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .table-stats {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .columns-list {
+    flex-direction: column;
+  }
+  
+  .table-wrapper {
+    overflow-x: auto;
+  }
+}
+
+/* Optimizaciones de rendimiento */
+@media (prefers-reduced-motion: reduce) {
+  .file-card, .btn-download, .btn-upload, .table-card {
+    transition: none;
+  }
+}
+</style>
+
+<!-- Header de la página -->
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">
+      <span class="page-icon">📊</span>
+      Resumen de Datos - {{ request.user.username }}
+    </h1>
+    <p class="mb-0">Vista completa de todos los archivos y datos que has subido al sistema</p>
+  </div>
+</div>
+
+<!-- Contenido principal -->
+{% if all_data %}
+  {% for data in all_data %}
+    <div class="file-card">
+      <!-- Header del archivo -->
+      <div class="file-header">
+        <h3 class="file-title">
+          <span class="file-icon">📄</span>
+          {{ data.file }}
+        </h3>
+        <div class="d-flex gap-2 align-items-center">
+          <span class="schema-badge">Schema: {{ data.schema }}</span>
+          <a href="{% url 'ingestion:descargar_excel' data.schema %}" 
+             class="btn-download"
+             title="Descargar archivo en formato Excel">
+            <i class="fas fa-download"></i>
+            Descargar Excel
+          </a>
+        </div>
+      </div>
+
+      <!-- Tablas del archivo -->
+      {% for table, info in data.tables.items %}
+        <div class="table-card">
+          <!-- Header de la tabla -->
+          <div class="table-header">
+            <h4 class="table-name">
+              <i class="fas fa-table"></i>
+              {{ table }}
+            </h4>
+          </div>
+
+          <!-- Estadísticas de la tabla -->
+          <div class="table-stats">
+            <div class="stat-item">
+              <span class="stat-icon">
+                <i class="fas fa-list-ol"></i>
+              </span>
+              <div>
+                <div class="stat-label">Filas</div>
+                <div class="stat-value">{{ info.rows|floatformat:0 }}</div>
+              </div>
+            </div>
+            <div class="stat-item">
+              <span class="stat-icon">
+                <i class="fas fa-columns"></i>
+              </span>
+              <div>
+                <div class="stat-label">Columnas</div>
+                <div class="stat-value">{{ info.columns|length }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lista de columnas -->
+          <div class="columns-section">
+            <div class="columns-label">Columnas disponibles:</div>
+            <div class="columns-list">
+              {% for col in info.columns %}
+                <span class="column-tag">{{ col }}</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Preview de datos -->
+          {% if info.preview %}
+            <div class="preview-section">
+              <div class="preview-label">
+                <i class="fas fa-eye"></i>
+                Vista previa de datos:
+              </div>
+              <div class="table-wrapper">
+                <table class="table table-hover data-table mb-0">
+                  <thead>
+                    <tr>
+                      {% for col in info.columns %}
+                        <th>{{ col }}</th>
+                      {% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in info.preview %}
+                      <tr>
+                        {% for val in row %}
+                          <td>{{ val|default:"—" }}</td>
+                        {% endfor %}
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    
+    {% if not forloop.last %}
+      <hr class="file-separator">
+    {% endif %}
+  {% endfor %}
+
+{% else %}
+  <!-- Estado vacío -->
+  <div class="empty-state">
+    <div class="empty-icon">📂</div>
+    <h3 class="empty-title">No hay archivos subidos</h3>
+    <p class="empty-text">Comienza subiendo tu primer archivo de datos para visualizar el resumen aquí</p>
+    <a href="{% url 'ingestion:upload' %}" class="btn-upload">
+      <i class="fas fa-cloud-upload-alt"></i>
+      Subir Primer Archivo
+    </a>
+  </div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Agregar animaciones de entrada escalonadas
+  const fileCards = document.querySelectorAll('.file-card');
+  fileCards.forEach((card, index) => {
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+      card.style.transition = 'all 0.5s ease';
+      card.style.opacity = '1';
+      card.style.transform = 'translateY(0)';
+    }, index * 100);
+  });
+
+  // Copiar nombre de columna al hacer click
+  const columnTags = document.querySelectorAll('.column-tag');
+  columnTags.forEach(tag => {
+    tag.style.cursor = 'pointer';
+    tag.title = 'Click para copiar';
+    
+    tag.addEventListener('click', function() {
+      const text = this.textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const original = this.textContent;
+        this.textContent = '✓ Copiado!';
+        this.style.background = 'var(--success-gradient)';
+        this.style.color = 'white';
+        
+        setTimeout(() => {
+          this.textContent = original;
+          this.style.background = '';
+          this.style.color = '';
+        }, 1500);
+      });
+    });
+  });
+
+  // Highlight de filas en hover
+  const tableRows = document.querySelectorAll('.data-table tbody tr');
+  tableRows.forEach(row => {
+    row.addEventListener('mouseenter', function() {
+      this.style.transform = 'scale(1.01)';
+    });
+    
+    row.addEventListener('mouseleave', function() {
+      this.style.transform = 'scale(1)';
+    });
+  });
+
+  // Loading state para botones de descarga
+  const downloadBtns = document.querySelectorAll('.btn-download');
+  downloadBtns.forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      const icon = this.querySelector('i');
+      const originalClass = icon.className;
+      
+      icon.className = 'fas fa-spinner fa-spin';
+      this.style.opacity = '0.7';
+      this.style.pointerEvents = 'none';
+      
+      // Restaurar después de 3 segundos como fallback
+      setTimeout(() => {
+        icon.className = originalClass;
+        this.style.opacity = '1';
+        this.style.pointerEvents = 'auto';
+      }, 3000);
+    });
+  });
+});
+</script>
+
+{% endblock %}

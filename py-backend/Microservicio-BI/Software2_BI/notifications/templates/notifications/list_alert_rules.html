@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reglas de Alerta{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header pb-0">
+          <div class="d-flex justify-content-between">
+            <h6>Reglas de Alerta Configuradas</h6>
+            <a href="{% url 'notifications:create_alert_rule' %}" class="btn btn-warning btn-sm">
+              <i class="material-symbols-rounded me-2">notification_add</i>Nueva Regla
+            </a>
+          </div>
+        </div>
+        <div class="card-body px-0 pb-2">
+          {% if rules %}
+            <div class="table-responsive">
+              <table class="table align-items-center mb-0">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Regla</th>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">KPI</th>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Condición</th>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Severidad</th>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Notificaciones</th>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Estado</th>
+                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for rule in rules %}
+                  <tr>
+                    <td>
+                      <div class="d-flex px-2 py-1">
+                        <div class="d-flex flex-column justify-content-center">
+                          <h6 class="mb-0 text-sm">{{ rule.name }}</h6>
+                          <p class="text-xs text-secondary mb-0">Creada: {{ rule.created_at|date:"d/m/Y" }}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <p class="text-xs font-weight-bold mb-0">{{ rule.kpi.name }}</p>
+                      <p class="text-xs text-secondary mb-0">{{ rule.kpi.get_metric_type_display }} - {{ rule.kpi.column_name }}</p>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <span class="text-xs font-weight-bold">{{ rule.get_comparison_operator_display }}</span>
+                        <span class="badge badge-sm bg-gradient-secondary ms-2">{{ rule.threshold_value }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      {% if rule.severity == 'critical' %}
+                        <span class="badge badge-sm bg-gradient-danger">{{ rule.get_severity_display }}</span>
+                      {% elif rule.severity == 'high' %}
+                        <span class="badge badge-sm bg-gradient-warning">{{ rule.get_severity_display }}</span>
+                      {% elif rule.severity == 'medium' %}
+                        <span class="badge badge-sm bg-gradient-info">{{ rule.get_severity_display }}</span>
+                      {% else %}
+                        <span class="badge badge-sm bg-gradient-secondary">{{ rule.get_severity_display }}</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <div class="d-flex">
+                        {% if rule.send_email %}
+                          <span class="badge badge-sm bg-gradient-success me-1" title="Email habilitado">
+                            <i class="material-symbols-rounded text-xs">email</i>
+                          </span>
+                        {% endif %}
+                        {% if rule.send_in_app %}
+                          <span class="badge badge-sm bg-gradient-info me-1" title="Notificación en app habilitada">
+                            <i class="material-symbols-rounded text-xs">notifications</i>
+                          </span>
+                        {% endif %}
+                        {% if not rule.send_email and not rule.send_in_app %}
+                          <span class="text-xs text-secondary">Sin notificaciones</span>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      {% if rule.is_active %}
+                        <span class="badge badge-sm bg-gradient-success">Activa</span>
+                      {% else %}
+                        <span class="badge badge-sm bg-gradient-secondary">Inactiva</span>
+                      {% endif %}
+                    </td>
+                    <td class="align-middle text-center">
+                      <div class="d-flex justify-content-center">
+                        <button class="btn btn-link text-info p-0 me-2" title="Ver detalles" data-bs-toggle="modal" data-bs-target="#ruleModal{{ rule.id }}">
+                          <i class="material-symbols-rounded text-sm">visibility</i>
+                        </button>
+                        <div class="dropdown">
+                          <button class="btn btn-link text-secondary p-0 mb-0" data-bs-toggle="dropdown">
+                            <i class="material-symbols-rounded text-sm">more_vert</i>
+                          </button>
+                          <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">Editar</a></li>
+                            <li><a class="dropdown-item" href="#">{% if rule.is_active %}Desactivar{% else %}Activar{% endif %}</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                              <form method="post" action="{% url 'notifications:delete_alert_rule' rule.id %}" class="d-inline" onsubmit="return confirm('¿Estás seguro? Esto eliminará la regla de alerta y todas las alertas asociadas.');">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item text-danger border-0 bg-transparent">Eliminar</button>
+                              </form>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Modal para detalles de la regla -->
+                  <div class="modal fade" id="ruleModal{{ rule.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title">{{ rule.name }}</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                          <div class="row">
+                            <div class="col-md-6">
+                              <strong>KPI:</strong>
+                              <p class="text-sm">{{ rule.kpi.name }}</p>
+                            </div>
+                            <div class="col-md-6">
+                              <strong>Severidad:</strong>
+                              <p class="text-sm">{{ rule.get_severity_display }}</p>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-12">
+                              <strong>Condición:</strong>
+                              <p class="text-sm">
+                                {{ rule.kpi.get_metric_type_display }} de {{ rule.kpi.column_name }}
+                                {{ rule.get_comparison_operator_display|lower }} {{ rule.threshold_value }}
+                              </p>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-12">
+                              <strong>Notificaciones:</strong>
+                              <ul class="text-sm">
+                                {% if rule.send_email %}
+                                  <li>Email: 
+                                    {% if rule.email_recipients %}
+                                      {{ rule.email_recipients|join:", " }}
+                                    {% else %}
+                                      {{ rule.kpi.owner.email }}
+                                    {% endif %}
+                                  </li>
+                                {% endif %}
+                                {% if rule.send_in_app %}
+                                  <li>Notificación en la aplicación</li>
+                                {% endif %}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-5">
+              <i class="material-symbols-rounded text-muted" style="font-size: 64px;">rule</i>
+              <h5 class="text-muted mt-3">No hay reglas de alerta configuradas</h5>
+              <p class="text-muted">Crea reglas de alerta para recibir notificaciones cuando tus KPIs superen ciertos umbrales</p>
+              <a href="{% url 'notifications:create_alert_rule' %}" class="btn btn-warning">
+                <i class="material-symbols-rounded me-2">notification_add</i>Crear Regla
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tarjetas informativas -->
+  <div class="row mt-4">
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="icon icon-shape bg-gradient-primary shadow mx-auto mb-2">
+            <i class="material-symbols-rounded opacity-10">trending_up</i>
+          </div>
+          <h6 class="text-primary">Mayor que (>)</h6>
+          <p class="text-xs text-secondary">Alerta cuando el valor supere el umbral</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="icon icon-shape bg-gradient-warning shadow mx-auto mb-2">
+            <i class="material-symbols-rounded opacity-10">trending_down</i>
+          </div>
+          <h6 class="text-warning">Menor que (<)</h6>
+          <p class="text-xs text-secondary">Alerta cuando el valor esté por debajo del umbral</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="icon icon-shape bg-gradient-info shadow mx-auto mb-2">
+            <i class="material-symbols-rounded opacity-10">equal</i>
+          </div>
+          <h6 class="text-info">Igual a (=)</h6>
+          <p class="text-xs text-secondary">Alerta cuando el valor sea exactamente igual</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="icon icon-shape bg-gradient-success shadow mx-auto mb-2">
+            <i class="material-symbols-rounded opacity-10">not_equal</i>
+          </div>
+          <h6 class="text-success">Diferente (≠)</h6>
+          <p class="text-xs text-secondary">Alerta cuando el valor sea diferente al umbral</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

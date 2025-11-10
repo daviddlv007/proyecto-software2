@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+{% block title %}Editor: {{ schema }}.{{ table }}{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-grid.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community/styles/ag-theme-quartz.css">
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+
+<style>
+.my-header{ display:flex; align-items:center; gap:.25rem; position:relative; }
+.my-header-label{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.my-header-btn{ border:0; background:transparent; cursor:pointer; font-size:14px; line-height:1; padding:0 4px; }
+.my-header-btn:after{ content:"⋮"; }
+
+/* el menú vive en <body>, así no se recorta */
+.my-header-menu{
+  position: fixed;
+  z-index: 20000;
+  background:#fff; border:1px solid #ddd; border-radius:6px;
+  box-shadow:0 6px 18px rgba(0,0,0,.12);
+  padding:6px; min-width:240px; max-width: min-content;
+}
+.my-header-menu.hidden{ display:none; }
+.my-header-menu .row{ display:flex; gap:.5rem; align-items:center; margin:6px 0; }
+.my-header-menu input, .my-header-menu select{ width:100%; font-size:13px; padding:4px 6px; }
+.my-header-menu .actions{ display:flex; gap:.5rem; }
+.my-header-menu hr{ border:none; border-top:1px solid #eee; margin:8px 0; }
+.my-header-menu button.item{ width:100%; text-align:left; background:transparent; border:0; padding:6px 8px; cursor:pointer; font-size:13px; }
+.my-header-menu button.item:hover{ background:#f5f5f5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card p-3">
+  <h3>Editor: <code>{{ schema }}.{{ table }}</code></h3>
+
+  <div class="mb-2 d-flex gap-2">
+    <button class="btn btn-outline-secondary btn-sm" onclick="reloadPage()">Recargar</button>
+    <button id="btn-ai-clean" class="btn btn-warning">
+      🪄 Limpieza con IA
+    </button>
+    <a class="btn btn-primary btn-sm"
+      href="{% url 'ml:panel' schema=schema table=table %}">
+      🤖 ML · Predicción
+    </a>
+    <button class="btn btn-outline-success btn-sm" onclick="addRow()">Agregar fila</button>
+    <button class="btn btn-outline-danger btn-sm" onclick="deleteSelected()">Eliminar filas</button>
+    <button class="btn btn-success btn-sm" onclick="saveChanges()">Guardar cambios</button>
+    <span class="ms-auto small text-muted">
+      Tip: usa el menú ⋮ en cada encabezado para acciones de columna
+    </span>
+  </div>
+
+  <div id="grid" class="ag-theme-quartz" style="height: 65vh;"></div>
+
+  <div id="pager" class="mt-2">
+    <button class="btn btn-sm btn-light" onclick="prevPage()">Anterior</button>
+    <span id="page-info"></span>
+    <button class="btn btn-sm btn-light" onclick="nextPage()">Siguiente</button>
+  </div>
+
+  <pre id="preview" class="mt-3" style="white-space:pre-wrap;"></pre>
+  
+</div>
+<div class="modal fade" id="aiCleanModal" tabindex="-1" aria-labelledby="aiCleanLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="ai-clean-form">
+        <div class="modal-header">
+          <h5 class="modal-title" id="aiCleanLabel">Limpieza con IA</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Contexto / Guardrails (opcional)</label>
+            <textarea class="form-control" name="guardrails" rows="4" placeholder="Ej: No borres columnas; no cambies tipos de fecha; normaliza 'hora_fin' a HH:MM:SS; rellena nulos de 'dia_ren' con 'Desconocido'"></textarea>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Tamaño de muestra (filas)</label>
+              <input type="number" class="form-control" name="sample_size" value="20" min="0" />
+              <div class="form-text">0 = no enviar muestra</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Modo</label>
+              <select class="form-select" name="mode">
+                <option value="suggest" selected>Solo sugerir plan</option>
+                <option value="apply">Aplicar directamente</option>
+              </select>
+            </div>
+          </div>
+
+          <hr>
+          <div id="ai-plan-preview" class="d-none">
+            <label class="form-label">Plan sugerido</label>
+            <pre class="bg-light p-2 rounded" style="max-height: 300px; overflow:auto;"></pre>
+            <div class="small text-muted">Revisa antes de aplicar.</div>
+          </div>
+
+          <div id="ai-error" class="alert alert-danger d-none mt-2"></div>
+          <div id="ai-info" class="alert alert-info d-none mt-2"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <button type="submit" class="btn btn-primary">Enviar a IA</button>
+          <button type="button" id="btn-apply-plan" class="btn btn-success d-none">Aplicar plan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(() => {
+  const schema = "{{ schema }}";
+  const table  = "{{ table }}";
+
+  let page = 1, pageSize = 50, totalRows = 0;
+  let pkCols = [];
+  let currentColumns = [];
+  let columnDefs = [];
+  let changes = new Map();
+  let gridApi;
+  const modalEl = document.getElementById('aiCleanModal');
+  const modal = new bootstrap.Modal(modalEl);
+  const btnOpen = document.getElementById('btn-ai-clean');
+  const form = document.getElementById('ai-clean-form');
+  const pre = document.querySelector('#ai-plan-preview pre');
+  const previewBox = document.getElementById('ai-plan-preview');
+  const errBox = document.getElementById('ai-error');
+  const infoBox = document.getElementById('ai-info');
+  const btnApply = document.getElementById('btn-apply-plan');
+  let lastPlan = null;
+  const csrftoken = (document.cookie.match('(^|;)\\s*csrftoken\\s*=\\s*([^;]+)')||[]).pop() || '';
+  
+  // === Header component (Community) ===
+  function MyHeader(){}
+MyHeader.prototype.init = function(params){
+  this.params = params;
+  const colId = params.column.getColId();
+
+  // Contenedor en el header: etiqueta + botón ⋮
+  const e = document.createElement('div');
+  e.className = 'my-header';
+  e.innerHTML = `
+    <span class="my-header-label" title="${params.displayName}">${params.displayName}</span>
+    <button class="my-header-btn" aria-label="acciones"></button>
+  `;
+  const label = e.querySelector('.my-header-label');
+  const btn   = e.querySelector('.my-header-btn');
+
+  // ===== SORT por clic en el título =====
+  label.addEventListener('click', (ev)=>{
+    // Usa API del header si existe; si no, aplica estado de columna
+    if (typeof params.progressSort === 'function') {
+      params.progressSort(ev.shiftKey);    // shift = multi-sort
+    } else if (params.api && params.column) {
+      const cur = params.column.getSort && params.column.getSort();
+      const next = cur === 'asc' ? 'desc' : cur === 'desc' ? null : 'asc';
+      params.api.applyColumnState({ state: [{ colId, sort: next }], defaultState: { sort: null } });
+    }
+  });
+
+  // ===== Menú en <body> (portal) =====
+  const menu = document.createElement('div');
+  menu.className = 'my-header-menu hidden';
+  menu.innerHTML = `
+    <div class="input-group input-group-outline my-3">
+      <input class="form-control f-input" type="text" placeholder="Filtrar ${colId}…">
+    </div>
+    <div class="input-group input-group-outline my-3">
+      <select class="form-control f-type">
+        <option value="contains">Contiene</option>
+        <option value="notContains">No contiene</option>
+        <option value="equals">Igual a</option>
+        <option value="startsWith">Empieza con</option>
+        <option value="endsWith">Termina con</option>
+      </select>
+    </div>
+      <div class="actions">
+        <button class="btn-apply btn btn-outline-success btn-sm mb-0" type="button">Aplicar</button>
+        <button class="btn-clear btn btn-outline-danger btn-sm mb-0" type="button">Limpiar</button>
+      </div>
+    
+    <hr/>
+    <button class="item" data-act="rename">Renombrar columna…</button>
+    <button class="item" data-act="cast">Cambiar tipo…</button>
+    <button class="item" data-act="fillnulls">Rellenar nulos…</button>
+    <button class="item" data-act="calc">Crear calculada…</button>
+    <button class="item" data-act="agg">Vista previa SUM…</button>
+  `;
+  document.body.appendChild(menu);
+
+  // Posicionar el menú junto al botón ⋮
+  const placeMenu = () => {
+    menu.classList.remove('hidden'); menu.style.visibility = 'hidden';
+    const r = btn.getBoundingClientRect();
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    let top  = r.bottom + 4;
+    let left = Math.min(window.innerWidth - mw - 8, Math.max(8, r.right - mw));
+    if (top + mh > window.innerHeight - 8) top = r.top - mh - 4;
+    menu.style.top = `${top}px`; menu.style.left = `${left}px`; menu.style.visibility = 'visible';
+  };
+  const toggleMenu = (ev) => {
+  ev.stopPropagation();
+  if (menu.classList.contains('hidden')) {
+    placeMenu();
+    // 👇 enfoca el input al mostrar
+    const fInput = menu.querySelector('.f-input');
+    setTimeout(() => fInput && fInput.focus(), 0);
+  } else {
+    menu.classList.add('hidden');
+  }
+};
+const hideMenu   = ()=> menu.classList.add('hidden');
+
+  btn.addEventListener('click', toggleMenu);
+  //document.addEventListener('click', hideMenu);
+    const onDocPointerDown = (ev) => {
+    if (!menu.contains(ev.target) && ev.target !== btn && !e.contains(ev.target)) {
+      menu.classList.add('hidden');
+    }
+  };
+  
+  document.addEventListener('pointerdown', onDocPointerDown);
+  const onEsc = (ev) => { if (ev.key === 'Escape') menu.classList.add('hidden'); };
+  window.addEventListener('keydown', (ev)=>{ if(ev.key==='Escape') hideMenu(); });
+  window.addEventListener('scroll', hideMenu, true);
+  window.addEventListener('resize', hideMenu);
+
+  // ===== Filtro por columna desde el menú =====
+  const fInput = menu.querySelector('.f-input');
+  const fType  = menu.querySelector('.f-type');
+  const apply  = menu.querySelector('.btn-apply');
+  const clear  = menu.querySelector('.btn-clear');
+
+  const applyFilter = ()=>{
+    const val = fInput.value?.trim();
+    const type = fType.value;
+    const api  = params.api || (window.gridApi); // fallback
+    const model = api.getFilterModel ? (api.getFilterModel() || {}) : {};
+    if (val) {
+      model[colId] = { filterType: 'text', type, filter: val };
+    } else {
+      delete model[colId];
+    }
+    api.setFilterModel && api.setFilterModel(model);
+    hideMenu();
+  };
+  apply.addEventListener('click', applyFilter);
+  fInput.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') applyFilter(); });
+  clear.addEventListener('click', ()=>{
+    const api = params.api || (window.gridApi);
+    const model = api.getFilterModel ? (api.getFilterModel() || {}) : {};
+    delete model[colId];
+    api.setFilterModel && api.setFilterModel(model);
+    fInput.value = '';
+    hideMenu();
+  });
+
+  // ===== Acciones de columna (renombrar, tipo, nulos, etc.) =====
+  menu.addEventListener('click', (ev)=>{
+    const b = ev.target.closest('button.item'); if(!b) return;
+    hideMenu();
+    const act = b.dataset.act;
+    const a = params.context?.actions;
+    if(!a) return;
+    if (act==='rename') a.rename(colId);
+    else if (act==='cast') a.cast(colId);
+    else if (act==='fillnulls') a.fillNulls(colId);
+    else if (act==='calc') a.calc(colId);
+    else if (act==='agg') a.agg(colId);
+  });
+
+  this.eGui = e;
+  this._cleanup = () => {
+    btn.removeEventListener('click', toggleMenu);
+    document.removeEventListener('pointerdown', onDocPointerDown);
+    window.removeEventListener('keydown', onEsc);
+    window.removeEventListener('scroll', () => menu.classList.add('hidden'), true);
+    window.removeEventListener('resize', () => menu.classList.add('hidden'));
+    menu.remove();
+  };
+};
+MyHeader.prototype.getGui = function(){ return this.eGui; };
+MyHeader.prototype.destroy = function(){ this._cleanup && this._cleanup(); };
+MyHeader.prototype.refresh = function(p){ this.eGui.querySelector('.my-header-label').textContent = p.displayName; return true; };
+  const gridOptions = {
+    theme: 'legacy', // seguimos con CSS legacy (sin Enterprise)
+    context: { actions: {
+      rename: renameColumn,
+      cast:   castColumn,
+      fillNulls: fillNulls,
+      calc:   addCalcUsing,
+      agg:    previewAggQuick,
+    }},
+    defaultColDef: {
+      editable: true,
+      sortable: true,
+      filter: true,
+      resizable: true,
+      headerComponent: MyHeader, // 👈 nuestro dropdown
+      headerTooltip: 'Usa ⋮ para acciones de columna',
+    },
+    rowSelection: { mode: 'multiRow' }, // v34
+    animateRows: true,
+    onCellValueChanged: (e) => {
+      const pk = pickPk(e.data);
+      const key = JSON.stringify(pk);
+      const prev = changes.get(key) || { pk, changes: {} };
+      prev.changes[e.colDef.field] = e.newValue;
+      changes.set(key, prev);
+    },
+    // nada Enterprise aquí ✔
+  };
+
+  function initGrid() {
+    const gridDiv = document.getElementById('grid');
+    gridApi = agGrid.createGrid(gridDiv, gridOptions);
+  }
+
+  function pickPk(row){
+    const obj = {};
+    if (pkCols.length === 0 && row._ctid) { obj["_ctid"] = row._ctid; return obj; }
+    pkCols.forEach(c => obj[c] = row[c]);
+    return obj;
+  }
+
+  async function loadPage(){
+    const r = await fetch(`{% url 'prep:data' schema table %}?page=${page}&page_size=${pageSize}`);
+    const d = await r.json();
+    totalRows = d.total;
+    pkCols = d.pk || [];
+    currentColumns = d.columns || [];
+
+    columnDefs = currentColumns.map(c => ({ headerName: c, field: c, editable: true }));
+    gridApi.setGridOption('columnDefs', columnDefs);
+    gridApi.setGridOption('rowData', d.rows || []);
+
+    changes.clear();
+    document.getElementById('page-info').textContent =
+      `Página ${page} • ${(d.rows||[]).length} filas (total ${totalRows})`;
+  }
+
+  // ===== Acciones de filas =====
+  function reloadPage(){ loadPage(); }
+  function nextPage(){ if (page * pageSize < totalRows) { page++; loadPage(); } }
+  function prevPage(){ if (page > 1) { page--; loadPage(); } }
+
+  async function saveChanges(){
+    if (!changes.size) { alert('No hay cambios'); return; }
+    const payload = { updates: Array.from(changes.values()) };
+    const r = await fetch(`{% url 'prep:update' schema table %}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken': csrftoken},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    document.getElementById('preview').textContent = JSON.stringify(d, null, 2);
+    if (d.ok) { changes.clear(); loadPage(); }
+  }
+
+  function addRow(){
+    const blank = {};
+    currentColumns.forEach(col => blank[col] = null);
+    gridApi.applyTransaction({ add: [blank], addIndex: 0 });
+  }
+
+  async function deleteSelected(){
+    const rows = gridApi.getSelectedRows();
+    if (!rows.length) return;
+    if (!confirm(`Eliminar ${rows.length} fila(s)?`)) return;
+    const keys = rows.map(r => pickPk(r));
+    const r = await fetch(`{% url 'prep:delete' schema table %}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken': csrftoken},
+      body: JSON.stringify({ keys })
+    });
+    const d = await r.json();
+    document.getElementById('preview').textContent = JSON.stringify(d, null, 2);
+    if (d.ok) loadPage();
+  }
+
+  // ===== Acciones por columna (usadas por el dropdown) =====
+  async function renameColumn(colId){
+    const to = prompt(`Nuevo nombre para "${colId}"`, colId + "_ren");
+    if (!to) return;
+    const r = await fetch(`{% url 'prep:rename' schema table %}`, {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrftoken},
+      body: JSON.stringify({ mapping: { [colId]: to } })
+    });
+    const d = await r.json(); document.getElementById('preview').textContent = JSON.stringify(d,null,2);
+    if (d.ok) loadPage();
+  }
+  async function castColumn(colId){
+    const t = prompt(`Nuevo tipo para "${colId}" (ej: int, numeric(12,2), timestamp)`, "int");
+    if (!t) return;
+    const r = await fetch(`{% url 'prep:cast' schema table %}`, {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrftoken},
+      body: JSON.stringify({ types: { [colId]: t } })
+    });
+    const d = await r.json(); document.getElementById('preview').textContent = JSON.stringify(d,null,2);
+    if (d.ok) loadPage();
+  }
+  async function fillNulls(colId){
+    const val = prompt(`Valor para nulos en "${colId}"`, "0");
+    if (val === null) return;
+    const r = await fetch(`{% url 'prep:nulls' schema table %}`, {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrftoken},
+      body: JSON.stringify({ action:"fill", value:String(val), cols:[colId] })
+    });
+    const d = await r.json(); document.getElementById('preview').textContent = JSON.stringify(d,null,2);
+    if (d.ok) loadPage();
+  }
+  async function addCalcUsing(colId){
+    const other = prompt(`Segunda columna para calcular con "${colId}"`, colId);
+    if (!other) return;
+    const newCol = prompt("Nombre de la nueva columna", "calc_" + colId);
+    if (!newCol) return;
+    const expr = `${colId} * ${other}`;
+    const r = await fetch(`{% url 'prep:calc' schema table %}`, {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrftoken},
+      body: JSON.stringify({ new_col:newCol, expr })
+    });
+    const d = await r.json(); document.getElementById('preview').textContent = JSON.stringify(d,null,2);
+    if (d.ok) loadPage();
+  }
+  async function previewAggQuick(colId){
+    const r = await fetch(`{% url 'prep:aggregate' schema table %}`, {
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrftoken},
+      body: JSON.stringify({ group_by:[colId], metrics:[{col:colId, op:"sum", as:"sum_"+colId}] })
+    });
+    const d = await r.json();
+    document.getElementById('preview').textContent = JSON.stringify(d, null, 2);
+  }
+
+  // Exportar controles de fila para los botones
+  Object.assign(window, {
+    addRow, deleteSelected, saveChanges, reloadPage, nextPage, prevPage
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initGrid();
+    loadPage();
+  });
+  function getCsrfToken() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+
+  btnOpen.addEventListener('click', () => {
+    form.reset();
+    previewBox.classList.add('d-none');
+    btnApply.classList.add('d-none');
+    errBox.classList.add('d-none');
+    infoBox.classList.add('d-none');
+    lastPlan = null;
+    modal.show();
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errBox.classList.add('d-none');
+    infoBox.classList.remove('d-none');
+    infoBox.textContent = 'Consultando a la IA...';
+
+    const data = new FormData(form);
+    const payload = {
+      guardrails: data.get('guardrails') || "",
+      sample_size: parseInt(data.get('sample_size') || "20", 10),
+      mode: data.get('mode') || "suggest"
+    };
+
+    try {
+      const res = await fetch(`/prep/${encodeURIComponent(schema)}/${encodeURIComponent(table)}/ai/suggest`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRFToken': getCsrfToken()},
+        body: JSON.stringify(payload)
+      });
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Error IA');
+
+      infoBox.classList.add('d-none');
+
+      if (payload.mode === 'apply') {
+        // ya aplicado en el backend
+        previewBox.classList.add('d-none');
+        btnApply.classList.add('d-none');
+        // recarga datos de la grilla si tienes función
+        if (window.reloadGrid) window.reloadGrid();
+        infoBox.classList.remove('d-none');
+        infoBox.textContent = 'Cambios aplicados por IA.';
+        return;
+      }
+
+      // modo suggest → mostrar plan
+      lastPlan = j.plan;
+      pre.textContent = JSON.stringify(j.plan, null, 2);
+      previewBox.classList.remove('d-none');
+      btnApply.classList.remove('d-none');
+    } catch (err) {
+      infoBox.classList.add('d-none');
+      errBox.classList.remove('d-none');
+      errBox.textContent = err.message || String(err);
+    }
+  });
+
+  btnApply.addEventListener('click', async () => {
+    if (!lastPlan) return;
+    errBox.classList.add('d-none');
+    infoBox.classList.remove('d-none');
+    infoBox.textContent = 'Aplicando plan...';
+
+    try {
+      const res = await fetch(`/prep/${encodeURIComponent(schema)}/${encodeURIComponent(table)}/ai/apply`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRFToken': getCsrfToken()},
+        body: JSON.stringify({ plan: lastPlan })
+      });
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Error al aplicar plan');
+      infoBox.classList.add('d-none');
+      // recarga la grilla
+      if (window.reloadGrid) window.reloadGrid();
+      modal.hide();
+    } catch (err) {
+      infoBox.classList.add('d-none');
+      errBox.classList.remove('d-none');
+      errBox.textContent = err.message || String(err);
+    }
+  });
+})();
+</script>
+
+{% endblock %}

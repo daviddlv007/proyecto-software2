@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Crear Regla de Alerta{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="mb-0">
+            Crear Nueva Regla de Alerta
+            {% if kpi %}
+              <span class="text-sm text-secondary">para KPI: {{ kpi.name }}</span>
+            {% endif %}
+          </h6>
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <label for="{{ form.name.id_for_label }}" class="form-label">Nombre de la Regla</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                  <div class="text-danger text-sm">{{ form.name.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12 mb-3">
+                <label for="{{ form.kpi.id_for_label }}" class="form-label">KPI a Monitorear</label>
+                {{ form.kpi }}
+                {% if form.kpi.errors %}
+                  <div class="text-danger text-sm">{{ form.kpi.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.comparison_operator.id_for_label }}" class="form-label">Condición</label>
+                {{ form.comparison_operator }}
+                {% if form.comparison_operator.errors %}
+                  <div class="text-danger text-sm">{{ form.comparison_operator.errors.0 }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.threshold_value.id_for_label }}" class="form-label">Valor Umbral</label>
+                {{ form.threshold_value }}
+                {% if form.threshold_value.errors %}
+                  <div class="text-danger text-sm">{{ form.threshold_value.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="{{ form.severity.id_for_label }}" class="form-label">Severidad</label>
+                {{ form.severity }}
+                {% if form.severity.errors %}
+                  <div class="text-danger text-sm">{{ form.severity.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Configuración de notificaciones -->
+            <div class="card mt-4">
+              <div class="card-header pb-0">
+                <h6 class="text-sm mb-0">Configuración de Notificaciones</h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <div class="form-check">
+                      {{ form.send_email }}
+                      <label class="form-check-label" for="{{ form.send_email.id_for_label }}">
+                        Enviar por Email
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <div class="form-check">
+                      {{ form.send_in_app }}
+                      <label class="form-check-label" for="{{ form.send_in_app.id_for_label }}">
+                        Notificación en la App
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-12 mb-3">
+                    <label for="{{ form.email_recipients_text.id_for_label }}" class="form-label">Destinatarios de Email</label>
+                    {{ form.email_recipients_text }}
+                    <small class="text-muted">{{ form.email_recipients_text.help_text }}</small>
+                    {% if form.email_recipients_text.errors %}
+                      <div class="text-danger text-sm">{{ form.email_recipients_text.errors.0 }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ejemplos de uso -->
+            <div class="card mt-4">
+              <div class="card-header pb-0">
+                <h6 class="text-sm mb-0">Ejemplos de Configuración</h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="border rounded p-2 mb-2">
+                      <strong class="text-sm text-success">Ventas Bajas</strong>
+                      <p class="text-xs text-secondary mb-0">
+                        Condición: Menor que<br>
+                        Valor: 10000<br>
+                        Severidad: Alta
+                      </p>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="border rounded p-2 mb-2">
+                      <strong class="text-sm text-info">Máximo Alcanzado</strong>
+                      <p class="text-xs text-secondary mb-0">
+                        Condición: Mayor o igual que<br>
+                        Valor: 50000<br>
+                        Severidad: Media
+                      </p>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="border rounded p-2 mb-2">
+                      <strong class="text-sm text-warning">Meta Exacta</strong>
+                      <p class="text-xs text-secondary mb-0">
+                        Condición: Igual a<br>
+                        Valor: 25000<br>
+                        Severidad: Baja
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row mt-4">
+              <div class="col-md-12">
+                <button type="submit" class="btn btn-success">
+                  <i class="material-symbols-rounded me-2">save</i>Crear Regla de Alerta
+                </button>
+                <a href="{% url 'notifications:dashboard' %}" class="btn btn-secondary">
+                  <i class="material-symbols-rounded me-2">arrow_back</i>Cancelar
+                </a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

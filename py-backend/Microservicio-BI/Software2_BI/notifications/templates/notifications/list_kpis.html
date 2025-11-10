@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Lista de KPIs{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header pb-0">
+          <div class="d-flex justify-content-between">
+            <h6>KPIs Configurados</h6>
+            <a href="{% url 'notifications:create_kpi' %}" class="btn btn-success btn-sm">
+              <i class="material-symbols-rounded me-2">add</i>Nuevo KPI
+            </a>
+          </div>
+        </div>
+        <div class="card-body px-0 pb-2">
+          {% if kpis %}
+            <div class="table-responsive">
+              <table class="table align-items-center mb-0">
+                <thead>
+                  <tr>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">KPI</th>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Fuente de Datos</th>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Métrica</th>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Columna</th>
+                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Estado</th>
+                    <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for kpi in kpis %}
+                  <tr>
+                    <td>
+                      <div class="d-flex px-2 py-1">
+                        <div class="d-flex flex-column justify-content-center">
+                          <h6 class="mb-0 text-sm">{{ kpi.name }}</h6>
+                          {% if kpi.description %}
+                            <p class="text-xs text-secondary mb-0">{{ kpi.description|truncatechars:50 }}</p>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <p class="text-xs font-weight-bold mb-0">{{ kpi.data_source.name }}</p>
+                      <p class="text-xs text-secondary mb-0">{{ kpi.data_source.internal_schema }}</p>
+                    </td>
+                    <td>
+                      <span class="badge badge-sm bg-gradient-info">{{ kpi.get_metric_type_display }}</span>
+                    </td>
+                    <td>
+                      <p class="text-xs font-weight-bold mb-0">{{ kpi.column_name }}</p>
+                    </td>
+                    <td>
+                      {% if kpi.is_active %}
+                        <span class="badge badge-sm bg-gradient-success">Activo</span>
+                      {% else %}
+                        <span class="badge badge-sm bg-gradient-secondary">Inactivo</span>
+                      {% endif %}
+                    </td>
+                    <td class="align-middle text-center">
+                      <div class="d-flex justify-content-center">
+                        <a href="{% url 'notifications:test_kpi' kpi.id %}" class="btn btn-link text-info p-0 me-2" title="Probar KPI">
+                          <i class="material-symbols-rounded text-sm">play_arrow</i>
+                        </a>
+                        <a href="{% url 'notifications:create_alert_rule_for_kpi' kpi.id %}" class="btn btn-link text-warning p-0 me-2" title="Crear Alerta">
+                          <i class="material-symbols-rounded text-sm">add_alert</i>
+                        </a>
+                        <form method="post" action="{% url 'notifications:delete_kpi' kpi.id %}" class="d-inline" onsubmit="return confirm('¿Estás seguro? Esto eliminará el KPI y todas sus reglas de alerta asociadas.');">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-link text-danger p-0" title="Eliminar KPI">
+                            <i class="material-symbols-rounded text-sm">delete</i>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-5">
+              <i class="material-symbols-rounded text-muted" style="font-size: 64px;">analytics</i>
+              <h5 class="text-muted mt-3">No hay KPIs configurados</h5>
+              <p class="text-muted">Crea tu primer KPI para comenzar a monitorear tus datos</p>
+              <a href="{% url 'notifications:create_kpi' %}" class="btn btn-success">
+                <i class="material-symbols-rounded me-2">add</i>Crear KPI
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Información adicional -->
+  <div class="row mt-4">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header pb-0">
+          <h6 class="text-sm">¿Qué es un KPI?</h6>
+        </div>
+        <div class="card-body">
+          <p class="text-sm text-secondary">
+            Un KPI (Key Performance Indicator) es una métrica que te permite medir el rendimiento 
+            de aspectos clave de tu negocio basado en los datos que has subido al sistema.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header pb-0">
+          <h6 class="text-sm">Tipos de Métricas</h6>
+        </div>
+        <div class="card-body">
+          <ul class="text-sm text-secondary">
+            <li><strong>Suma:</strong> Total de valores</li>
+            <li><strong>Promedio:</strong> Valor medio</li>
+            <li><strong>Conteo:</strong> Número de registros</li>
+            <li><strong>Máximo/Mínimo:</strong> Valores extremos</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header pb-0">
+          <h6 class="text-sm">Próximos Pasos</h6>
+        </div>
+        <div class="card-body">
+          <p class="text-sm text-secondary">
+            Una vez creado un KPI, puedes configurar alertas para recibir notificaciones 
+            cuando los valores superen ciertos umbrales.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

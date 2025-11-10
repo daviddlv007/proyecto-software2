@@ -1,0 +1,1586 @@
+{% extends "base.html" %}
+{% block title %}Drag & Drop - {{ source.name }}{% endblock %}
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Drag & Drop - {{ source.name }}</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --info-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+      --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      --card-shadow: 0 10px 25px rgba(102, 126, 234, 0.15);
+      --card-shadow-hover: 0 15px 35px rgba(102, 126, 234, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .header-section {
+      background: var(--primary-gradient);
+      color: white;
+      padding: 2rem;
+      border-radius: 16px;
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .widget-save {
+      background: var(--primary-gradient);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.3s ease;
+    }
+    .widget-title[contenteditable="true"]{
+        outline: none;
+        border-bottom: 1px dashed #cbd5e1;
+        padding: 2px 4px;
+        border-radius: 4px;
+        cursor: text;
+    }
+    .widget-title[contenteditable="true"]:focus{
+        background: #eef2ff;
+    }
+    .widget-title[contenteditable="true"]:empty:before{
+        content: attr(data-placeholder);
+        color: #9ca3af;
+    }
+
+    .widget-save:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .header-pattern {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 2px, transparent 2px),
+        radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 2px, transparent 2px);
+      background-size: 50px 50px;
+    }
+
+    .header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .header-title {
+      font-size: 2rem;
+      font-weight: bold;
+      margin: 0 0 0.5rem 0;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-icon {
+      background: rgba(255,255,255,0.2);
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 1.5rem;
+    }
+
+    .header-subtitle {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .dd-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr 360px;
+      gap: 20px;
+      margin-top: 20px;
+      min-height: 80vh;
+    }
+
+    .panel, .canvas, .config {
+      background: white;
+      border: none;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      transition: all 0.3s ease;
+    }
+
+    .panel:hover, .config:hover {
+      box-shadow: var(--card-shadow-hover);
+      transform: translateY(-2px);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f1f5f9;
+    }
+
+    .section-icon {
+      background: var(--primary-gradient);
+      color: white;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 1.2rem;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #1e293b;
+      margin: 0;
+    }
+
+    .chart-palette {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+
+    .chart-pill {
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      padding: 1rem;
+      border-radius: 12px;
+      cursor: grab;
+      user-select: none;
+      border: 2px solid transparent;
+      text-align: center;
+      font-weight: 600;
+      color: #475569;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .chart-pill::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--primary-gradient);
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+
+    .chart-pill:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+      border-color: #667eea;
+    }
+
+    .chart-pill:hover::before {
+      transform: translateX(0);
+    }
+
+    .chart-pill:active {
+      transform: translateY(-1px) scale(0.98);
+    }
+
+    .chart-pill[data-chart="bar"] { border-left: 4px solid #4facfe; }
+    .chart-pill[data-chart="line"] { border-left: 4px solid #43e97b; }
+    .chart-pill[data-chart="pie"] { border-left: 4px solid #f093fb; }
+    .chart-pill[data-chart="doughnut"] { border-left: 4px solid #fee140; }
+    .chart-pill[data-chart="scatter"] { border-left: 4px solid #fa709a; }
+    .chart-pill[data-chart="radar"] { border-left: 4px solid #a8edea; }
+
+    .tables {
+      max-height: 60vh;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .tables::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .tables::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 3px;
+    }
+
+    .tables::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    .tables::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .table-box {
+      margin-bottom: 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .table-box:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-1px);
+    }
+
+    .table-title {
+      background: var(--success-gradient);
+      color: white;
+      padding: 12px 16px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .table-rows {
+      background: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.8);
+      font-size: 0.875rem;
+      padding: 4px 8px;
+      border-radius: 12px;
+    }
+
+    .col {
+      padding: 10px 16px;
+      border-top: 1px solid #f1f5f9;
+      cursor: grab;
+      user-select: none;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .col::before {
+      content: "📊";
+      font-size: 0.875rem;
+    }
+
+    .col:hover {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      color: #0369a1;
+      transform: translateX(4px);
+    }
+
+    .col:active {
+      transform: translateX(2px) scale(0.98);
+    }
+
+    .canvas {
+      min-height: 75vh;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      align-content: start;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      position: relative;
+      padding: 2rem;
+    }
+
+    .canvas::before {
+      content: "🎨 Arrastra gráficos aquí para comenzar";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #94a3b8;
+      font-size: 1.2rem;
+      font-weight: 500;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .canvas:has(.widget)::before {
+      display: none;
+    }
+
+    .widget {
+      background: white;
+      border: 2px solid transparent;
+      border-radius: 16px;
+      padding: 1.5rem;
+      position: relative;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      animation: slideIn 0.5s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .widget:hover {
+      box-shadow: var(--card-shadow-hover);
+      transform: translateY(-4px);
+      border-color: #667eea;
+    }
+
+    .widget.selected {
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    .widget-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .widget-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #1e293b;
+    }
+
+    .widget-gear {
+      background: var(--primary-gradient);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.3s ease;
+    }
+
+    .widget-gear:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .drop-zone {
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 16px;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .drop-zone::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+      transition: left 0.6s ease;
+    }
+
+    .drop-zone:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+      transform: scale(1.02);
+    }
+
+    .drop-zone:hover::before {
+      left: 100%;
+    }
+
+    .drop-zone.drag-over {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.1);
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+
+    .tag {
+      background: var(--success-gradient);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
+      animation: fadeInScale 0.3s ease;
+    }
+
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .chip-x {
+      border: none;
+      background: rgba(255,255,255,0.2);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      color: white;
+      padding: 4px 6px;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .chip-x:hover {
+      background: rgba(255,255,255,0.3);
+      transform: scale(1.1);
+    }
+
+    .controls {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .row {
+      display: grid;
+      gap: 8px;
+    }
+
+    .row label {
+      font-weight: 600;
+      color: #374151;
+      font-size: 0.9rem;
+    }
+
+    .config select,
+    .config input {
+      padding: 10px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+    }
+
+    .config select:focus,
+    .config input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .run-btn {
+      padding: 12px 24px;
+      background: var(--success-gradient);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .run-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+    }
+
+    .run-btn:active {
+      transform: translateY(0);
+    }
+
+    .run-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .msg {
+      font-size: 0.875rem;
+      margin-top: 12px;
+      color: #64748b;
+      min-height: 20px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #f8fafc;
+      transition: all 0.3s ease;
+    }
+
+    .msg.success {
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      color: #166534;
+      border-left: 4px solid #22c55e;
+    }
+
+    .msg.error {
+      background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+      color: #dc2626;
+      border-left: 4px solid #ef4444;
+    }
+
+    .hint {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      color: #1e40af;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border-radius: 12px;
+      border-left: 4px solid #3b82f6;
+      line-height: 1.6;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      .dd-layout {
+        grid-template-columns: 280px 1fr 320px;
+        gap: 16px;
+      }
+    }
+
+    @media (max-width: 992px) {
+      .dd-layout {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      
+      .canvas {
+        min-height: 50vh;
+      }
+      
+      .chart-palette {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header-title {
+        font-size: 1.5rem;
+      }
+      
+      .chart-palette {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .canvas {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Loading States */
+    .loading {
+      position: relative;
+      opacity: 0.7;
+    }
+
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid #667eea;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Chart Canvas Styling */
+    canvas {
+      border-radius: 8px !important;
+    }
+
+    /* Drag feedback */
+    .chart-pill.dragging {
+      opacity: 0.5;
+      transform: rotate(5deg) scale(0.9);
+    }
+
+    .col.dragging {
+      opacity: 0.5;
+      transform: scale(0.9);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: #64748b;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* Pulse animation for active elements */
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header Section -->
+  <div class="header-section">
+    <div class="header-pattern"></div>
+    <div class="header-content">
+      <h1 class="header-title">
+        <div class="header-icon">🔧</div>
+        Drag & Drop Dashboard — {{ source.name }}
+      </h1>
+      <p class="header-subtitle">
+        Crea visualizaciones interactivas arrastrando tipos de gráficos al lienzo y configurando tus datos. 
+        Combina columnas para crear insights poderosos con una interfaz intuitiva.
+      </p>
+    </div>
+  </div>
+
+  <div class="hint">
+    <strong>💡 Cómo usar:</strong> 
+    Arrastra un tipo de gráfico al lienzo central. Luego arrastra columnas a "Leyenda" y "Valor" en el panel de configuración. 
+    Por ahora, cada gráfico trabaja con una tabla (sin JOIN). ¡Experimenta con diferentes combinaciones!
+  </div>
+
+  <div class="dd-layout">
+    <!-- IZQUIERDA: Paleta + Tablas/Columnas -->
+    <div class="panel">
+      <div class="section-header">
+        <div class="section-icon">🎨</div>
+        <h3 class="section-title">Paleta de Gráficos</h3>
+      </div>
+      <div class="chart-palette">
+        <div class="chart-pill" draggable="true" data-chart="bar">
+          📊 Barras
+        </div>
+        <div class="chart-pill" draggable="true" data-chart="line">
+          📈 Líneas
+        </div>
+        <div class="chart-pill" draggable="true" data-chart="pie">
+          🥧 Circular
+        </div>
+        <div class="chart-pill" draggable="true" data-chart="doughnut">
+          🍩 Dona
+        </div>
+        <div class="chart-pill" draggable="true" data-chart="scatter">
+          🔸 Dispersión
+        </div>
+        <div class="chart-pill" draggable="true" data-chart="radar">
+          🎯 Radar
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-icon">🗂️</div>
+        <h3 class="section-title">Campos de Datos</h3>
+      </div>
+      <div id="tables" class="tables">
+        <div class="empty-state">
+          <div class="empty-state-icon">📊</div>
+          <div>Cargando estructura de datos...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTRO: Lienzo -->
+    <div id="canvas" class="canvas"></div>
+
+    <!-- DERECHA: Configuración del widget seleccionado -->
+    <div class="config">
+      <div class="section-header">
+        <div class="section-icon">⚙️</div>
+        <h3 class="section-title">Configuración</h3>
+      </div>
+      
+      <div id="no-widget" class="empty-state">
+        <div class="empty-state-icon">🎯</div>
+        <div>Selecciona un gráfico del lienzo para configurar sus propiedades</div>
+      </div>
+
+      <div id="widget-config" style="display:none;">
+        <div class="controls">
+          <div class="row">
+            <label><strong>Tipo de gráfico</strong></label>
+            <div id="cfg-type" class="tag"></div>
+          </div>
+
+          <div class="row">
+            <label><strong>Tabla de datos</strong></label>
+            <div id="cfg-table" class="tag"></div>
+          </div>
+
+          <div class="row">
+            <label>Leyenda (dimensión)</label>
+            <div id="drop-legend" class="drop-zone" data-slot="legend">
+              🏷️ Arrastra una columna aquí para la leyenda
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Valor (métrica)</label>
+            <div id="drop-value" class="drop-zone" data-slot="value">
+              📊 Arrastra una columna aquí (opcional si es COUNT)
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Función de agregación</label>
+            <select id="agg">
+              <option value="COUNT">COUNT - Contar registros</option>
+              <option value="SUM">SUM - Sumar valores</option>
+              <option value="AVG">AVG - Promedio</option>
+              <option value="MIN">MIN - Valor mínimo</option>
+              <option value="MAX">MAX - Valor máximo</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label>Límite de resultados</label>
+            <input id="limit" type="number" min="1" max="1000" value="10" placeholder="Máximo registros a mostrar" />
+          </div>
+
+          <div class="row">
+            <button class="run-btn" id="run">
+              ▶️ Generar Gráfico
+            </button>
+          </div>
+
+          <div class="msg" id="msg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ---------- Helpers ----------
+  function csrf() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : "";
+  }
+  function el(id){return document.getElementById(id);}
+
+  const sourceId = {{ source.id }};
+  let SCHEMA_NAME = null;
+  let SCHEMA = {}; // {table: {columns:[], rows:int}}
+  const charts = new Map(); // widgetId -> Chart instance
+  let selectedWidgetId = null;
+const WIDGET_RESULT = new Map();
+  // ---------- Cargar esquema ----------
+  fetch("{% url 'ingestion:dragdrop_schema_api' source.id %}")
+    .then(r => r.json())
+    .then(data => {
+      if (data.error){ 
+        el('tables').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">❌</div>
+            <div>${data.error}</div>
+          </div>
+        `;
+        return; 
+      }
+      SCHEMA_NAME = data.schema;
+      SCHEMA = data.tables || {};
+      renderTables();
+    })
+    .catch(err => {
+      el('tables').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">⚠️</div>
+          <div>Error al cargar datos: ${err.message}</div>
+        </div>
+      `;
+    });
+
+  function renderTables() {
+    const cont = el('tables');
+    if (Object.keys(SCHEMA).length === 0) {
+      cont.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">📋</div>
+          <div>No hay tablas disponibles</div>
+        </div>
+      `;
+      return;
+    }
+
+    cont.innerHTML = "";
+    Object.entries(SCHEMA).forEach(([t,info])=>{
+      const box = document.createElement('div');
+      box.className = 'table-box';
+      box.innerHTML = `
+        <div class="table-title">
+          📊 ${t}
+          <span class="table-rows">${info.rows} filas</span>
+        </div>
+      `;
+      (info.columns||[]).forEach(c=>{
+        const col = document.createElement('div');
+        col.className = 'col';
+        col.textContent = c;
+        col.draggable = true;
+        col.dataset.table = t;
+        col.dataset.column = c;
+        
+        // drag start para columnas
+        col.addEventListener('dragstart', (ev)=>{
+          ev.dataTransfer.setData('text/plain', JSON.stringify({ kind:'column', table:t, column:c }));
+          col.classList.add('dragging');
+        });
+        
+        col.addEventListener('dragend', ()=>{
+          col.classList.remove('dragging');
+        });
+        
+        box.appendChild(col);
+      });
+      cont.appendChild(box);
+    });
+  }
+
+  // ---------- Paleta: dragstart de gráficos ----------
+  document.querySelectorAll('.chart-pill').forEach(p=>{
+    p.addEventListener('dragstart', ev=>{
+      ev.dataTransfer.setData('text/plain', JSON.stringify({ kind:'chart', chart: p.dataset.chart }));
+      p.classList.add('dragging');
+    });
+    
+    p.addEventListener('dragend', ()=>{
+      p.classList.remove('dragging');
+    });
+  });
+
+  // ---------- Canvas: drop de gráficos ----------
+  const canvas = el('canvas');
+  canvas.addEventListener('dragover', ev=>ev.preventDefault());
+  canvas.addEventListener('drop', (ev)=>{
+    ev.preventDefault();
+    let data;
+    try { data = JSON.parse(ev.dataTransfer.getData('text/plain') || '{}'); } catch(_){}
+    if (!data || data.kind!=='chart') return;
+
+    // Crear widget vacío
+    const widgetId = 'w_' + Math.random().toString(36).slice(2,9);
+    const node = document.createElement('div');
+    node.className = 'widget';
+    node.id = widgetId;
+    node.dataset.chartType = data.chart;
+    node.dataset.table = "";
+    node.dataset.legend = "";
+    node.dataset.value = "";
+    node.dataset.agg = "COUNT";
+    node.dataset.limit = "10";
+
+    const chartEmojis = {
+      bar: '📊', line: '📈', pie: '🥧', 
+      doughnut: '🍩', scatter: '🔸', radar: '🎯'
+    };
+
+    node.innerHTML = `
+      <div class="widget-header">
+        <div class="widget-title" style="overflow-wrap: anywhere;" contenteditable="true" data-placeholder="Título (clic para editar)">${data.chart.toUpperCase()}</div>
+        <div >
+            <button class="widget-gear" style="margin-bottom: 4px" title="Configurar">⚙️ Configurar</button>
+            <button class="widget-save" title="Guardar" onclick="guardarWidget('${widgetId}')">💾 Guardar</button>
+        </div>
+      </div>
+      <div>
+        <canvas id="${widgetId}_canvas" height="220"></canvas>
+      </div>
+      <div class="msg" id="${widgetId}_msg">
+        🎯 Configura este gráfico en el panel derecho y pulsa "Generar Gráfico"
+      </div>
+    `;
+
+    canvas.appendChild(node);
+    initTitleEditing(node, widgetId);
+    // Event listeners
+    node.querySelector('.widget-gear').addEventListener('click', ()=>selectWidget(widgetId));
+    node.addEventListener('click', ()=>selectWidget(widgetId));
+    
+    // Auto-select the new widget
+    selectWidget(widgetId);
+    
+    // Add pulse effect temporarily
+    node.classList.add('pulse');
+    setTimeout(() => node.classList.remove('pulse'), 2000);
+  });
+
+  // ---------- Selección de widget y panel config ----------
+  function selectWidget(widgetId){
+    // Remove selection from other widgets
+    document.querySelectorAll('.widget').forEach(w => w.classList.remove('selected'));
+    
+    selectedWidgetId = widgetId;
+    const node = document.getElementById(widgetId);
+    if (!node) { return; }
+    
+    // Add selection visual feedback
+    node.classList.add('selected');
+
+    el('no-widget').style.display = 'none';
+    el('widget-config').style.display = 'block';
+
+    el('cfg-type').textContent = node.dataset.chartType.toUpperCase();
+    renderTableTag(node.dataset.table || "");
+
+    // pintar chips de legend/value
+    renderSlot('drop-legend', node.dataset.legend, node.dataset.table);
+    renderSlot('drop-value', node.dataset.value, node.dataset.table);
+
+    el('agg').value = node.dataset.agg || 'COUNT';
+    el('limit').value = node.dataset.limit || '10';
+    el('msg').textContent = '';
+    el('msg').className = 'msg'; // Reset msg classes
+  }
+
+  function renderSlot(slotId, columnName, tableName){
+    const zone = el(slotId);
+    if (!columnName) {
+      const placeholders = {
+        'drop-legend': '🏷️ Arrastra una columna aquí para la leyenda',
+        'drop-value': '📊 Arrastra una columna aquí (opcional si es COUNT)'
+      };
+      zone.innerHTML = placeholders[slotId] || 'Arrastra una columna aquí';
+      zone.classList.remove('has-content');
+      return;
+    }
+    
+    zone.classList.add('has-content');
+    zone.innerHTML = `
+      <span class="tag">
+        📊 ${tableName ? `${tableName}.` : ''}${columnName}
+        <button class="chip-x" title="Quitar" aria-label="Quitar">×</button>
+      </span>
+    `;
+    const btn = zone.querySelector('.chip-x');
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      clearSlot(slotId);
+    });
+  }
+
+  function clearSlot(slotId) {
+    if (!selectedWidgetId) return;
+    const node = document.getElementById(selectedWidgetId);
+    if (!node) return;
+
+    if (slotId === 'drop-legend') {
+      node.dataset.legend = "";
+      // si también no hay value, liberamos la tabla
+      if (!node.dataset.value) node.dataset.table = "";
+    } else if (slotId === 'drop-value') {
+      node.dataset.value = "";
+      // si no hay value, mejor COUNT
+      if (el('agg').value !== 'COUNT') {
+        el('agg').value = 'COUNT';
+        node.dataset.agg = 'COUNT';
+      }
+    }
+
+    renderTableTag(node.dataset.table || "");
+    renderSlot('drop-legend', node.dataset.legend, node.dataset.table);
+    renderSlot('drop-value',  node.dataset.value,  node.dataset.table);
+    
+    updateMessage('Configuración actualizada', 'info');
+  }
+
+  function renderTableTag(tableName) {
+    const box = el('cfg-table');
+    if (!tableName) {
+      box.innerHTML = '<span style="color: #94a3b8; font-style: italic;">Se asigna automáticamente al soltar columna</span>';
+      return;
+    }
+    box.innerHTML = `
+      <span class="tag">
+        🗂️ ${tableName}
+        <button class="chip-x" title="Quitar tabla" aria-label="Quitar tabla">×</button>
+      </span>
+    `;
+    const btn = box.querySelector('.chip-x');
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      clearTable();
+    });
+  }
+
+  function clearTable() {
+    if (!selectedWidgetId) return;
+    const node = document.getElementById(selectedWidgetId);
+    if (!node) return;
+
+    // Al limpiar tabla, limpiamos dimension y métrica, y dejamos COUNT.
+    node.dataset.table = "";
+    node.dataset.legend = "";
+    node.dataset.value  = "";
+
+    // Forzamos COUNT para evitar errores si el usuario pulsa Ejecutar sin valor
+    el('agg').value = 'COUNT';
+    node.dataset.agg = 'COUNT';
+
+    renderTableTag("");
+    renderSlot('drop-legend', "", "");
+    renderSlot('drop-value',  "", "");
+    
+    updateMessage('Configuración reiniciada', 'info');
+  }
+
+  // Habilitar drop en zonas Legend/Value
+  ['drop-legend','drop-value'].forEach(id=>{
+    const zone = el(id);
+    
+    zone.addEventListener('dragover', (ev) => {
+      ev.preventDefault();
+      zone.classList.add('drag-over');
+    });
+    
+    zone.addEventListener('dragleave', (ev) => {
+      ev.preventDefault();
+      zone.classList.remove('drag-over');
+    });
+    
+    zone.addEventListener('drop', (ev)=>{
+      ev.preventDefault();
+      zone.classList.remove('drag-over');
+      
+      if (!selectedWidgetId) {
+        updateMessage('Primero selecciona un gráfico del lienzo', 'error');
+        return;
+      }
+      
+      let d; 
+      try { d = JSON.parse(ev.dataTransfer.getData('text/plain')||'{}'); }catch(_){}
+      if (!d || d.kind!=='column') return;
+
+      const node = document.getElementById(selectedWidgetId);
+      
+      // Restringir a 1 tabla por widget
+      if (node.dataset.table && node.dataset.table !== d.table) {
+        updateMessage('Por ahora solo se permite 1 tabla por gráfico. Limpia la configuración para usar otra tabla.', 'error');
+        return;
+      }
+      
+      node.dataset.table = d.table;
+
+      if (id === 'drop-legend'){
+        node.dataset.legend = d.column;
+        updateMessage(`Leyenda configurada: ${d.table}.${d.column}`, 'success');
+      } else {
+        node.dataset.value = d.column;
+        updateMessage(`Valor configurado: ${d.table}.${d.column}`, 'success');
+      }
+      
+      selectWidget(selectedWidgetId);
+    });
+  });
+
+  // Cambios de agg/limit
+  el('agg').addEventListener('change', ()=>{
+    if (!selectedWidgetId) return;
+    const node = document.getElementById(selectedWidgetId);
+    node.dataset.agg = el('agg').value;
+    updateMessage(`Agregación cambiada a: ${el('agg').value}`, 'info');
+  });
+  
+  el('limit').addEventListener('change', ()=>{
+    if (!selectedWidgetId) return;
+    const node = document.getElementById(selectedWidgetId);
+    node.dataset.limit = el('limit').value || "10";
+    updateMessage(`Límite cambiado a: ${el('limit').value} registros`, 'info');
+  });
+
+  // Helper function for messages
+  function updateMessage(text, type = 'info') {
+    const msgEl = el('msg');
+    msgEl.textContent = text;
+    msgEl.className = `msg ${type}`;
+    
+    if (type === 'success' || type === 'info') {
+      setTimeout(() => {
+        msgEl.textContent = '';
+        msgEl.className = 'msg';
+      }, 3000);
+    }
+  }
+
+  // ---------- Ejecutar ----------
+  el('run').addEventListener('click', ()=>{
+    if (!selectedWidgetId) {
+      updateMessage('Selecciona un gráfico primero', 'error');
+      return;
+    }
+    
+    const node = document.getElementById(selectedWidgetId);
+    const runBtn = el('run');
+    
+    const cfg = {
+      source_id: {{ source.id }},
+      chart_type: node.dataset.chartType,
+      table: node.dataset.table,
+      legend: node.dataset.legend,
+      value: node.dataset.value || null,
+      agg: el('agg').value,
+      limit: parseInt(el('limit').value || 10, 10),
+    };
+
+    // Validaciones básicas en front
+    if (!cfg.table || !cfg.legend){
+      updateMessage("⚠️ Configuración incompleta: necesitas al menos Tabla + Leyenda.", 'error');
+      return;
+    }
+    if (cfg.agg !== 'COUNT' && !cfg.value){
+      updateMessage("⚠️ Para SUM/AVG/MIN/MAX, arrastra una columna a Valor.", 'error');
+      return;
+    }
+
+    // UI Loading state
+    runBtn.disabled = true;
+    runBtn.innerHTML = '⏳ Generando...';
+    runBtn.classList.add('loading');
+    updateMessage("🔄 Procesando datos y generando gráfico...", 'info');
+
+    fetch("{% url 'ingestion:dragdrop_run_api' %}", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+      body: JSON.stringify(cfg)
+    })
+    .then(r=>r.json())
+    .then(data=>{
+      if (!data.success){
+        updateMessage(`❌ ${data.error || "Error desconocido."}`, 'error');
+        return;
+      }
+      
+      renderChart(selectedWidgetId, data.chart_type, data.chart_data);
+      updateMessage("✅ ¡Gráfico generado exitosamente!", 'success');
+      
+      // Update widget message
+      const widgetMsg = document.getElementById(selectedWidgetId + '_msg');
+      if (widgetMsg) {
+        widgetMsg.textContent = '✅ Gráfico actualizado';
+        widgetMsg.className = 'msg success';
+      }
+        const node = document.getElementById(selectedWidgetId);
+        const defaultTitle = buildWidgetTitle(node, data.chart_type, data.chart_data);
+        const finalTitle   = node.dataset.customTitle || defaultTitle;
+        WIDGET_RESULT.set(selectedWidgetId, {
+            chart_type: data.chart_type,
+            chart_data: data.chart_data,
+            sql_query: data.sql || data.sql_query || null,   // requiere que el backend lo envíe (ver más abajo)
+            title: finalTitle,
+            description: data.description || "Gráfico creado desde Drag & Drop",
+        });
+    })
+    .catch(err=>{
+      updateMessage(`🚫 Error de conexión: ${err.message}`, 'error');
+    })
+    .finally(() => {
+      // Reset button state
+      runBtn.disabled = false;
+      runBtn.innerHTML = '▶️ Generar Gráfico';
+      runBtn.classList.remove('loading');
+    });
+  });
+
+    function buildWidgetTitle(node, type, chartData){
+        const legend = node.dataset.legend || 'leyenda';
+        const value  = node.dataset.value || 'count';
+        if (type === 'scatter') return `${value} vs ${legend}`;
+        if (type === 'radar')   return `${value} por ${legend} (radar)`;
+        return `${value} por ${legend}`;
+    }
+
+  function renderChart(widgetId, type, chartData){
+    const ctx = document.getElementById(widgetId + "_canvas").getContext('2d');
+    if (charts.has(widgetId)) { 
+      charts.get(widgetId).destroy(); 
+      charts.delete(widgetId); 
+    }
+
+    // Enhanced chart options
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: false },
+        legend: {
+          display: type === 'pie' || type === 'doughnut' || (chartData.datasets||[]).length > 1,
+          position: 'bottom',
+          labels: {
+            padding: 20,
+            usePointStyle: true,
+            font: {
+              size: 12
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          titleColor: 'white',
+          bodyColor: 'white',
+          borderColor: '#667eea',
+          borderWidth: 1,
+          cornerRadius: 8,
+          displayColors: true
+        }
+      },
+      animation: {
+        duration: 1500,
+        easing: 'easeInOutQuart'
+      }
+    };
+
+    // Type-specific configurations
+    if (type === 'radar') {
+      options.scales = { 
+        r: { 
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(102, 126, 234, 0.1)'
+          },
+          pointLabels: {
+            color: '#64748b'
+          }
+        } 
+      };
+    } else if (type === 'scatter') {
+      options.scales = {
+        x: { 
+          type: 'linear', 
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(102, 126, 234, 0.1)'
+          },
+          ticks: {
+            color: '#64748b'
+          }
+        },
+        y: { 
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(102, 126, 234, 0.1)'
+          },
+          ticks: {
+            color: '#64748b'
+          }
+        }
+      };
+    } else if (type !== 'pie' && type !== 'doughnut') {
+      options.scales = { 
+        y: { 
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(102, 126, 234, 0.1)'
+          },
+          ticks: {
+            color: '#64748b'
+          }
+        },
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#64748b'
+          }
+        }
+      };
+    }
+
+    // Enhanced color schemes
+    if (chartData.datasets) {
+      chartData.datasets.forEach((dataset, index) => {
+        const colors = [
+          'rgba(102, 126, 234, 0.8)',
+          'rgba(79, 172, 254, 0.8)',
+          'rgba(67, 233, 123, 0.8)',
+          'rgba(240, 147, 251, 0.8)',
+          'rgba(254, 225, 64, 0.8)',
+          'rgba(250, 112, 154, 0.8)'
+        ];
+        
+        const borderColors = [
+          'rgba(102, 126, 234, 1)',
+          'rgba(79, 172, 254, 1)',
+          'rgba(67, 233, 123, 1)',
+          'rgba(240, 147, 251, 1)',
+          'rgba(254, 225, 64, 1)',
+          'rgba(250, 112, 154, 1)'
+        ];
+
+        if (type === 'pie' || type === 'doughnut') {
+          dataset.backgroundColor = colors;
+          dataset.borderColor = borderColors;
+          dataset.borderWidth = 2;
+        } else {
+          dataset.backgroundColor = colors[index % colors.length];
+          dataset.borderColor = borderColors[index % borderColors.length];
+          dataset.borderWidth = 2;
+          
+          if (type === 'line') {
+            dataset.fill = false;
+            dataset.tension = 0.4;
+          }
+        }
+      });
+    }
+
+    const chart = new Chart(ctx, { type, data: chartData, options });
+    charts.set(widgetId, chart);
+
+    // Update widget title
+    const node = document.getElementById(widgetId);
+    const titleEl = node.querySelector('.widget-title');
+    const legend = node.dataset.legend || 'leyenda';
+    const agg = node.dataset.agg || 'COUNT';
+    const value = node.dataset.value || 'registros';
+    titleEl.textContent = node.dataset.customTitle || buildWidgetTitle(node, type, chartData);
+    const chartEmojis = {
+      bar: '📊', line: '📈', pie: '🥧', 
+      doughnut: '🍩', scatter: '🔸', radar: '🎯'
+    };
+    
+    if (type === 'scatter') {
+      titleEl.textContent = `${chartEmojis[type]} ${value} vs ${legend}`;
+    } else {
+      const aggLabels = {
+        'COUNT': 'Cantidad',
+        'SUM': 'Suma',
+        'AVG': 'Promedio',
+        'MIN': 'Mínimo',
+        'MAX': 'Máximo'
+      };
+      const aggLabel = aggLabels[agg] || agg;
+      const valueLabel = agg === 'COUNT' ? 'registros' : value;
+      titleEl.textContent = `${chartEmojis[type]} ${aggLabel} de ${valueLabel} por ${legend}`;
+    }
+  }
+
+  // Add keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'Enter' && selectedWidgetId) {
+        e.preventDefault();
+        el('run').click();
+      }
+    }
+    
+    if (e.key === 'Escape' && selectedWidgetId) {
+      // Deselect widget
+      document.querySelectorAll('.widget').forEach(w => w.classList.remove('selected'));
+      selectedWidgetId = null;
+      el('no-widget').style.display = 'block';
+      el('widget-config').style.display = 'none';
+    }
+  });
+
+  // Add double-click to edit
+  canvas.addEventListener('dblclick', (e) => {
+    const widget = e.target.closest('.widget');
+    if (widget) {
+      selectWidget(widget.id);
+      // Focus on the first configurable element
+      const firstInput = el('widget-config').querySelector('input, select');
+      if (firstInput) firstInput.focus();
+    }
+  });
+
+  // Add context menu for widgets (right-click)
+  canvas.addEventListener('contextmenu', (e) => {
+    const widget = e.target.closest('.widget');
+    if (widget) {
+      e.preventDefault();
+      // Simple context menu - in a real app you'd want a proper context menu
+      if (confirm('¿Eliminar este gráfico?')) {
+        // Destroy chart if exists
+        if (charts.has(widget.id)) {
+          charts.get(widget.id).destroy();
+          charts.delete(widget.id);
+        }
+        
+        // Remove widget
+        widget.remove();
+        
+        // Clear selection if this was the selected widget
+        if (selectedWidgetId === widget.id) {
+          selectedWidgetId = null;
+          el('no-widget').style.display = 'block';
+          el('widget-config').style.display = 'none';
+        }
+        
+        updateMessage('Gráfico eliminado', 'success');
+      }
+    }
+  });
+
+  // Add auto-save functionality (could be extended to save layouts)
+  function autoSave() {
+    if (!selectedWidgetId) return;
+    
+    const widgets = Array.from(document.querySelectorAll('.widget')).map(w => ({
+      id: w.id,
+      type: w.dataset.chartType,
+      table: w.dataset.table,
+      legend: w.dataset.legend,
+      value: w.dataset.value,
+      agg: w.dataset.agg,
+      limit: w.dataset.limit
+    }));
+    
+    // Store in localStorage as a simple example
+    localStorage.setItem(`dashboard_${sourceId}`, JSON.stringify(widgets));
+  }
+function guardarWidget(widgetId){
+  const node = document.getElementById(widgetId);
+  const msgEl = document.getElementById(widgetId + "_msg");
+
+  const result = WIDGET_RESULT.get(widgetId);
+  if (!result){
+    msgEl.textContent = "Primero ejecuta el gráfico (▶ Ejecutar) para poder guardarlo.";
+    return;
+  }
+  if (!result.sql_query){
+    msgEl.textContent = "El backend no retornó SQL. No puedo guardar. (Asegúrate de que el API devuelva 'sql')";
+    return;
+  }
+  const defaultTitle = buildWidgetTitle(node, result.chart_type, result.chart_data);
+  const titleToSave  = (node.dataset.customTitle || result.title || defaultTitle).trim();
+  msgEl.textContent = "💾 Guardando...";
+  fetch("{% url 'ingestion:guardar_diagrama' %}", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+    body: JSON.stringify({
+      source_id: {{ source.id }},
+      title: titleToSave,
+      description: result.description,
+      chart_type: result.chart_type,
+      chart_data: result.chart_data,
+      sql_query: result.sql_query
+    })
+  })
+  .then(r=>r.json())
+  .then(data=>{
+    if (data.success){
+      msgEl.textContent = "✅ Diagrama guardado";
+      // opcional: location.reload();
+    } else {
+      msgEl.textContent = "❌ " + (data.error || "No se pudo guardar");
+    }
+  })
+  .catch(err=>{
+    msgEl.textContent = "❌ Error de red: " + err.message;
+  });
+}
+
+// Guarda el último resultado por widget (para poder “Guardar”)
+
+// Habilita edición del título y guarda en dataset.customTitle
+function initTitleEditing(node, widgetId){
+  const titleEl = node.querySelector('.widget-title');
+
+  titleEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      titleEl.blur();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      // Revertir al customTitle si existía o dejar como estaba
+      const prev = node.dataset.customTitle;
+      if (prev) titleEl.textContent = prev;
+      titleEl.blur();
+    }
+  });
+
+  titleEl.addEventListener('blur', () => {
+    const t = titleEl.textContent.trim();
+    if (t) {
+      node.dataset.customTitle = t;
+      // Si ya tenemos resultado, actualiza su title
+      const res = WIDGET_RESULT.get(widgetId);
+      if (res) {
+        res.title = t;
+        WIDGET_RESULT.set(widgetId, res);
+      }
+    } else {
+      // Si quedó vacío, quita el custom y muestra un título por defecto
+      delete node.dataset.customTitle;
+      const ch = charts.get(widgetId);
+      const data = ch ? ch.data : { labels: [], datasets: [] };
+      titleEl.textContent = buildWidgetTitle(node, node.dataset.chartType, data);
+    }
+  });
+}
+
+  // Auto-save every 30 seconds
+  setInterval(autoSave, 30000);
+
+  // Initialize empty state check
+  function checkEmptyState() {
+    const hasWidgets = document.querySelectorAll('.widget').length > 0;
+    canvas.style.setProperty('--has-widgets', hasWidgets ? '1' : '0');
+  }
+
+  // Observer for canvas changes
+  const canvasObserver = new MutationObserver(checkEmptyState);
+  canvasObserver.observe(canvas, { childList: true });
+
+  // Initial check
+  checkEmptyState();
+</script>
+</body>
+</html>
+{% endblock %}
