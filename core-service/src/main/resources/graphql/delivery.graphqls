@@ -1,0 +1,30 @@
+type DeliveryQuote {
+    distance: Float!
+    fee: Float!
+    estimatedMinutes: Int!
+}
+
+type DeliveryInfo {
+    status: String!
+    address: String
+    distance: Float
+    fee: Float
+    eta: Int
+    riderId: String
+}
+
+input DeliveryRequest {
+    ventaId: ID!
+    address: String!
+    latitude: Float!
+    longitude: Float!
+}
+
+extend type Query {
+    getDeliveryQuote(latitude: Float!, longitude: Float!): DeliveryQuote!
+}
+
+extend type Mutation {
+    requestDelivery(input: DeliveryRequest!): DeliveryInfo!
+    updateDeliveryStatus(ventaId: ID!, status: String!, riderId: String): DeliveryInfo!
+}

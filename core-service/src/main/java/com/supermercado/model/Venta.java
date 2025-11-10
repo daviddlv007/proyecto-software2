@@ -24,7 +24,52 @@ public class Venta {
     
     @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<DetalleVenta> detalles = new ArrayList<>();
-    
+
+    // Campos para Payments
+    @Column(name = "payment_provider", length = 20)
+    private String paymentProvider;
+
+    @Column(name = "payment_status", length = 20)
+    private String paymentStatus;
+
+    @Column(name = "checkout_session_id", length = 100)
+    private String checkoutSessionId;
+
+    @Column(name = "payment_intent_id", length = 100)
+    private String paymentIntentId;
+
+    @Column(name = "qr_checkout_url", length = 5000)
+    private String qrCheckoutUrl;
+
+    @Column(name = "currency", length = 10)
+    private String currency = "USD";
+
+    // Campos para Delivery
+    @Column(name = "delivery_status", length = 20)
+    private String deliveryStatus;
+
+    @Column(name = "delivery_address", length = 500)
+    private String deliveryAddress;
+
+    @Column(name = "delivery_lat")
+    private Double deliveryLat;
+
+    @Column(name = "delivery_lng")
+    private Double deliveryLng;
+
+    @Column(name = "delivery_distance_km")
+    private Double deliveryDistanceKm;
+
+    @Column(name = "delivery_fee")
+    private Double deliveryFee;
+
+    @Column(name = "delivery_eta_minutes")
+    private Integer deliveryEtaMinutes;
+
+    @Column(name = "delivery_rider_id", length = 50)
+    private String deliveryRiderId;
+
+
     // Método de conveniencia para calcular total automáticamente
     public void calcularTotal() {
         this.total = detalles.stream()

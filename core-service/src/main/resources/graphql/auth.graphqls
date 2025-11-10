@@ -1,0 +1,22 @@
+type AuthResponse {
+    token: String!
+    userId: ID!
+    nombre: String!
+    correo: String!
+}
+
+input RegisterInput {
+    nombre: String!
+    correo: String!
+    contrasena: String!
+}
+
+input LoginInput {
+    correo: String!
+    contrasena: String!
+}
+
+extend type Mutation {
+    register(input: RegisterInput!): AuthResponse!
+    login(input: LoginInput!): AuthResponse!
+}

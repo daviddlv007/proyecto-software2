@@ -1,0 +1,14 @@
+type CheckoutInfo { 
+    url: String! 
+}
+
+type QRPaymentInfo {
+    qrImageBase64: String!
+    qrData: String!
+    ventaId: ID!
+}
+
+extend type Mutation {
+    startPayment(ventaId: ID!): CheckoutInfo!
+    createQRPayment(ventaId: ID!): QRPaymentInfo!
+}

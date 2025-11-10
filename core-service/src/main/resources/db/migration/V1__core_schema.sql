@@ -24,7 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_categorias_nombre ON categorias(nombre);
 CREATE INDEX IF NOT EXISTS idx_categorias_activa ON categorias(activa);
 
 -- ============================================
--- PRODUCTOS
+-- PRODUCTOS   
 -- ============================================
 CREATE TABLE IF NOT EXISTS productos (
     id SERIAL PRIMARY KEY,

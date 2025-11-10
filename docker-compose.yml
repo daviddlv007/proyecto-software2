@@ -10,6 +10,7 @@ networks:
 
 volumes:
   # SQLite files persistentes
+  pgdata:
   core-db-data:
   ml-db-data:
   dl-db-data:
@@ -19,6 +20,27 @@ volumes:
 
 services:
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: coredb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"  # si ya tienes un Postgres local, usa "5433:5432"
+    networks:
+      - app-network
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # (opcional) Semillas iniciales en el primer arranque:
+      # - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d coredb"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
   # ==========================================
   # CORE SERVICE - Spring Boot + GraphQL
   # ==========================================
@@ -29,21 +51,57 @@ services:
     container_name: core-service
     restart: unless-stopped
     environment:
-      # H2 en memoria para desarrollo rápido
-      SPRING_DATASOURCE_URL: jdbc:h2:file:/data/core_db;AUTO_SERVER=TRUE
-      SPRING_DATASOURCE_USERNAME: sa
-      SPRING_DATASOURCE_PASSWORD: 
-      SPRING_DATASOURCE_DRIVER: org.h2.Driver
-      HIBERNATE_DIALECT: org.hibernate.dialect.H2Dialect
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+     #para obetenet el webhook en el servidor 
+#stripe login
+#stripe listen --forward-to http://localhost:8080/webhooks/stripe
+      # --- Features ---
+      FEATURE_DELIVERY: "true"          #activar para usar 
+      FEATURE_PAYMENTS: "true"
+      FEATURE_VOICE_AI: "true"
+
+      # --- Google Maps ---
+      GOOGLE_MAPS_API_KEY: "AIzaSyAyJXX4yccaVjL9AadHoaDICZZ8pGhlyvQ"
+
+    # JWT (opcional en desarrollo)
+      JWT_SECRET: "mi-secreto-jwt-super-seguro-256-bits-minimo"
+      
+      # Delivery (coordenadas de tu tienda)
+      DELIVERY_ORIGIN_LAT: "-17.7833"
+      DELIVERY_ORIGIN_LNG: "-63.1821"
+      DELIVERY_BASE_FEE: "1.5"
+      DELIVERY_PER_KM: "0.6"
+      # --- Stripe (si ya estás probando pagos) ---
+      STRIPE_SECRET_KEY: "sk_test_51ROVXK4IgZQzA85xXL35jSKmBhVfx8R5eZasEHB7Q4EzhMBAiGvYX3KJMn4xeC2UjBrTmPi62q0D1zlaTUUe3nHQ00pk9RJxkj"
+      STRIPE_WEBHOOK_SECRET: "whsec_466b5e48fa2e395bb958057a04762de409e0668ac8ebfbf73cfe372b496d8555"
+      APP_SUCCESS_URL: "http://localhost:5173/pago-exitoso"
+      APP_CANCEL_URL: "http://localhost:5173/pago-cancelado"
+      CURRENCY: "USD"
+
+      # --- OpenAI (voz/IA) ---
+      OPENAI_API_KEY: "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"
+      OPENAI_TRANSCRIBE_MODEL: "whisper-1"
+      OPENAI_TEXT_MODEL: "gpt-4o-mini"
+
+
+      SPRING_FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      SPRING_FLYWAY_SCHEMAS: public
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migration
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/coredb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update   # crea/actualiza tablas
       SERVER_PORT: 8080
-      H2_CONSOLE_ENABLED: "true"
-      # JVM optimizado para desarrollo
-      JAVA_OPTS: "-Xms64m -Xmx256m -XX:+UseSerialGC"
-    volumes:
-      - core-db-data:/data
-      # Hot reload (opcional, comentar si no usas Spring DevTools)
-      # - ./core-service/src:/app/src
+      # (opcional) logs SQL:
+      # LOGGING_LEVEL_org.hibernate.SQL: DEBUG
+      # LOGGING_LEVEL_org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # ya no necesitas el volumen de H2:
+    # volumes:
+    #   - core-db-data:/data
     networks:
       - app-network
     ports:

@@ -1,0 +1,23 @@
+type VoiceItem {
+  nombre: String!
+  cantidad: Float!
+  unidad: String
+}
+type VoiceAvailability {
+  nombre: String!
+  productoId: ID
+  matchNombre: String
+  stock: Int!
+  solicitado: Float!
+  status: String!      # OK | PARTIAL | OUT | NOT_FOUND
+  faltante: Float!
+}
+type VoiceResult {
+  transcript: String
+  items: [VoiceItem!]!
+  availability: [VoiceAvailability!]!
+}
+
+extend type Query {
+  generateShoppingList(text: String!): VoiceResult!
+}

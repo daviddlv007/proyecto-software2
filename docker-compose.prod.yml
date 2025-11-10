@@ -64,6 +64,32 @@ services:
       postgres:
         condition: service_healthy
     environment:
+
+      # --- Features ---
+      FEATURE_DELIVERY: "true"
+      FEATURE_PAYMENTS: "true"
+      FEATURE_VOICE_AI: "true"
+
+      # --- Google Maps ---
+      GOOGLE_MAPS_API_KEY: "AIzaSyAyJXX4yccaVjL9AadHoaDICZZ8pGhlyvQ"
+
+      # --- Stripe ---
+      STRIPE_SECRET_KEY: "sk_test_51ROVXK4IgZQzA85xXL35jSKmBhVfx8R5eZasEHB7Q4EzhMBAiGvYX3KJMn4xeC2UjBrTmPi62q0D1zlaTUUe3nHQ00pk9RJxkj"
+      STRIPE_WEBHOOK_SECRET: "whsec_466b5e48fa2e395bb958057a04762de409e0668ac8ebfbf73cfe372b496d8555"
+      APP_SUCCESS_URL: "https://localhost/pago-exitoso"
+      APP_CANCEL_URL:  "https://localhost/pago-cancelado"
+      CURRENCY: "USD"   # o "BOB"
+
+      # --- OpenAI ---
+      OPENAI_API_KEY: "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"
+      OPENAI_TRANSCRIBE_MODEL: "whisper-1"
+      OPENAI_TEXT_MODEL: "gpt-4o-mini"
+
+      # (opcional) Flyway si quieres forzar ubicación
+      # SPRING_FLYWAY_ENABLED: "true"
+      # SPRING_FLYWAY_LOCATIONS: "classpath:db/migration"
+
+    
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/coredb
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-core_user}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-core_password}
