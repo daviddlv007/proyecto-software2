@@ -115,7 +115,7 @@ class ExternalConnection(models.Model):
     )
     db_type = models.CharField(max_length=20, choices=DB_TYPES, default=POSTGRES)
     host = models.CharField(max_length=255)
-    port = models.IntegerField(default=5433)  # ajusta a 5432 si tu estándar es 5432
+    port = models.IntegerField(default=5432)  # Puerto estándar PostgreSQL
     database = models.CharField(max_length=255)
     username = EncryptedCharField(max_length=255)
     password = EncryptedTextField()

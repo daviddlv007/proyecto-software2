@@ -7,7 +7,9 @@ import {
   Paper,
   Avatar,
   Grid,
-  CircularProgress
+  CircularProgress,
+  Button,
+  Alert
 } from '@mui/material';
 import {
   Category,
@@ -15,7 +17,9 @@ import {
   People,
   ShoppingCart,
   TrendingUp,
-  Assignment
+  Assignment,
+  BarChart as BarChartIcon,
+  OpenInNew
 } from '@mui/icons-material';
 import { useQuery } from '@apollo/client/react';
 import {
@@ -161,9 +165,30 @@ const Dashboard: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom sx={{ mb: 4, fontWeight: 'bold' }}>
-        Dashboard - Panel de Control
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 0 }}>
+          Dashboard - Panel de Control
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<BarChartIcon />}
+          endIcon={<OpenInNew />}
+          onClick={() => window.open('http://localhost:8083', '_blank')}
+          sx={{ 
+            bgcolor: '#1976d2',
+            '&:hover': { bgcolor: '#1565c0' },
+            fontWeight: 'bold',
+            px: 3
+          }}
+        >
+          Reportes BI Avanzados
+        </Button>
+      </Box>
+
+      <Alert severity="info" sx={{ mb: 3 }}>
+        <strong>💡 Nuevo:</strong> Accede a análisis avanzados, dashboards interactivos y ML en el módulo de Reportes BI.
+      </Alert>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>

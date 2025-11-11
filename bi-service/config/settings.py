@@ -21,16 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-6pylp6ufnzjo$-3rk1-6(m=!s=of^-4kuz2j9_t@$kfx=_sra$'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-6pylp6ufnzjo$-3rk1-6(m=!s=of^-4kuz2j9_t@$kfx=_sra$')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-#GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyBlTTrJVms7u1AbkNsWogoiQgkLVDIxSbs")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyC3frLxbcP-v4tN_bcum0W-Z0t9-04CMfE")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 
-ALLOWED_HOSTS = ['*']  
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')  
 
 
 # Application definition
@@ -72,7 +71,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'Software2_BI.urls'
+ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
@@ -90,7 +89,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'Software2_BI.wsgi.application'
+WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
@@ -99,12 +98,19 @@ WSGI_APPLICATION = 'Software2_BI.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'software2_DB',       # Nombre de la base que creaste
-        'USER': 'postgres',        # Usuario de tu PostgreSQL
-        # 'PASSWORD': 'openpg', # Contraseña del usuario
-        'PASSWORD': 'Gb22aC08', # Contraseña del usuario
-        'HOST': 'localhost',       # Si está en tu máquina local
-        'PORT': '5432',            # Puerto por defecto de PostgreSQL
+        'NAME': os.environ.get('BI_DB_NAME', 'software2_DB'),
+        'USER': os.environ.get('BI_DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('BI_DB_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('BI_DB_HOST', 'localhost'),
+        'PORT': os.environ.get('BI_DB_PORT', '5432'),
+    },
+    'external_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('CORE_DB_NAME', 'coredb'),
+        'USER': os.environ.get('CORE_DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('CORE_DB_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('CORE_DB_HOST', 'postgres'),
+        'PORT': os.environ.get('CORE_DB_PORT', '5432'),
     }
 }
 
@@ -112,11 +118,11 @@ EXTERNAL_DBS = {
     "coredb": {
         "name": "coredb",
         "db_type": "postgres",
-        "host": "127.0.0.1",
-        "port": 5432,
-        "database": "coredb",
-        "user": "postgres",
-        "password": "postgres",
+        "host": os.environ.get('CORE_DB_HOST', 'postgres'),
+        "port": int(os.environ.get('CORE_DB_PORT', 5432)),
+        "database": os.environ.get('CORE_DB_NAME', 'coredb'),
+        "user": os.environ.get('CORE_DB_USER', 'postgres'),
+        "password": os.environ.get('CORE_DB_PASSWORD', 'postgres'),
         "schema": "public",
     },
 }
@@ -158,15 +164,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-STATICFILES_DIRS = [BASE_DIR / "static"]
 
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "dashboard"     # cámbialo a donde quieras aterrizar
+LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -175,8 +182,8 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
 
-EMAIL_HOST_USER = 'solizfarydmarquez@gmail.com'
-EMAIL_HOST_PASSWORD = 'kxbodoimtkqrncdi'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'solizfarydmarquez@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Límites aumentados para PDFs grandes

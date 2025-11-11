@@ -143,6 +143,10 @@ Thumbs.db
 .env.test.local
 .env.production.local
 
+# Docker compose con secretos
+docker-compose.local.yml
+docker-compose.override.yml
+
 # ==========================================
 # MODELOS ML/DL (Opcional - evaluar si subir)
 # ==========================================

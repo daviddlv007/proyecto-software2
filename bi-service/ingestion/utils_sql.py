@@ -25,7 +25,7 @@ def _norm(creds: dict | None) -> dict:
     c = dict(creds or {})
     db = _get_external_db()
 
-    c.setdefault("host", db.get("HOST", "localhost"))
+    c.setdefault("host", db.get("HOST", "postgres"))
     c.setdefault("port", db.get("PORT", 5432))
     c.setdefault("database", db.get("NAME"))
     c.setdefault("user", db.get("USER"))
@@ -125,10 +125,76 @@ def ejecutar_sql_para_chart(sql: str, **db_credentials):
     # 🔹 Asegurar espacio en "JOIN" por si el LLM lo omite (pJOIN → p JOIN)
     sql = sql.replace('pJOIN', 'p JOIN').replace('vJOIN', 'v JOIN').replace('JOINJOIN', 'JOIN JOIN')
 
+    df = None
     with engine.connect() as conn:
         df = pd.read_sql_query(text(sql), conn)
 
-    if df.shape[1] < 2 or df.empty:
+    # Si no devolvió datos, intentar reescrituras simples y re-ejecutar como fallback.
+    if df is None or df.shape[1] < 2 or df.empty:
+        print(f"⚠️ Query returned empty or <2 columns. Attempting fallback rewrites...")
+        # Obtener lista de tablas con conteo de filas para sugerir reemplazos
+        tbl_counts = {}
+        with engine.connect() as conn:
+            try:
+                res = conn.execute(text("""
+                    SELECT table_name, (xpath('/row/count/text()', query_to_xml(format('SELECT COUNT(*) as count FROM %I', table_name), false, true, '')))[1]::text::int as cnt
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public' AND table_type='BASE TABLE';
+                """))
+                for row in res.fetchall():
+                    tbl_counts[row[0]] = int(row[1] or 0)
+                print(f"📊 Table counts: {tbl_counts}")
+            except Exception as e:
+                print(f"❌ Could not fetch table counts: {e}")
+                tbl_counts = {}
+
+        # intentos de reescritura: fecha_venta<->fecha, plural<->singular
+        import re
+        attempts = []
+        
+        # 1. Reemplazar fecha_venta por fecha
+        attempts.append(sql.replace('fecha_venta', 'fecha'))
+        
+        # 2. Reemplazar tablas plurales por singular donde existan datos
+        # Ej: ventas -> venta si venta tiene filas
+        for plural in ['ventas', 'productos', 'clientes', 'categorias', 'usuarios', 'detalle_ventas']:
+            singular = plural.rstrip('s')  # ventas->venta, detalle_ventas->detalle_venta
+            if singular in tbl_counts and tbl_counts.get(singular, 0) > 0:
+                # Reemplazo case-insensitive de FROM/JOIN tabla
+                pattern = r'\b' + plural + r'\b'
+                repl = singular
+                attempt = re.sub(pattern, repl, sql, flags=re.IGNORECASE)
+                attempts.append(attempt)
+                # combinado con fecha_venta -> fecha
+                attempts.append(re.sub(pattern, repl, sql.replace('fecha_venta', 'fecha'), flags=re.IGNORECASE))
+        
+        # 3. Combinar reemplazos múltiples si hay varias tablas plurales
+        combined = sql.replace('fecha_venta', 'fecha')
+        for plural in ['ventas', 'productos', 'clientes', 'categorias', 'usuarios']:
+            singular = plural.rstrip('s')
+            if singular in tbl_counts and tbl_counts.get(singular, 0) > 0:
+                combined = re.sub(r'\b' + plural + r'\b', singular, combined, flags=re.IGNORECASE)
+        attempts.append(combined)
+
+        # Ejecutar intentos hasta que alguno devuelva datos (cada uno en nueva conexión)
+        print(f"🔄 Trying {len(attempts)} fallback SQL variants...")
+        for idx, alt_sql in enumerate(attempts):
+            try:
+                print(f"  Attempt {idx+1}: {alt_sql[:100]}")
+                # Nueva conexión para evitar transaction aborted
+                with engine.connect() as conn_alt:
+                    df_alt = pd.read_sql_query(text(alt_sql), conn_alt)
+                print(f"    → Result: shape={df_alt.shape}, empty={df_alt.empty}")
+                if df_alt.shape[1] >= 2 and not df_alt.empty:
+                    df = df_alt
+                    sql = alt_sql
+                    print(f"✅ Fallback SQL exitoso: {alt_sql}")
+                    break
+            except Exception as e:
+                print(f"    → Error: {e}")
+                continue
+
+    if df is None or df.shape[1] < 2 or df.empty:
         return {"labels": [], "datasets": [{"data": []}]}
 
     labels = df.iloc[:, 0].astype(str).tolist()

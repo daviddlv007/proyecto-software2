@@ -39,12 +39,13 @@ def get_engine(
     driver="postgresql+psycopg2",
     **kwargs
 ):
-    # DATOS ESTÁTICOS (hardcodeados)
-    host = host or "localhost"
-    port = int(port or 5433)
-    database = database or dbname or "coredb"
-    user = user or "postgres"
-    password = password or "postgres"
+    # Usar configuración de Django por defecto si no se proporcionan parámetros
+    db = settings.DATABASES["default"]
+    host = host or db.get("HOST", "localhost")
+    port = int(port or db.get("PORT", 5432))
+    database = database or dbname or db.get("NAME", "software2_DB")
+    user = user or db.get("USER", "postgres")
+    password = password or db.get("PASSWORD", "postgres")
 
     url = URL.create(
         drivername=driver,
@@ -1061,7 +1062,7 @@ def get_db_credentials(db_credentials: dict | None = None) -> dict:
     Retorna siempre:
         {
             "host": "...",
-            "port": 5433,
+            "port": 5432,
             "database": "...",
             "user": "...",
             "password": "...",
@@ -1074,7 +1075,7 @@ def get_db_credentials(db_credentials: dict | None = None) -> dict:
     if all(k in creds for k in ["host", "database", "user", "password"]):
         return {
             "host": creds.get("host"),
-            "port": creds.get("port") or 5433,
+            "port": creds.get("port") or 5432,
             "database": creds.get("database"),
             "user": creds.get("user"),
             "password": creds.get("password"),
@@ -1084,8 +1085,8 @@ def get_db_credentials(db_credentials: dict | None = None) -> dict:
     # Sino: usar credenciales del settings Django (PostgreSQL interno)
     db = settings.DATABASES["default"]
     return {
-        "host": db.get("HOST", "localhost"),
-        "port": db.get("PORT", 5433),
+        "host": db.get("HOST", "postgres"),
+        "port": db.get("PORT", 5432),
         "database": db.get("NAME"),
         "user": db.get("USER"),
         "password": db.get("PASSWORD"),
@@ -1104,7 +1105,7 @@ def get_foreign_keys(schema, **db_credentials):
         database=db_credentials["database"],
         user=db_credentials["user"],
         password=db_credentials["password"],
-        port=db_credentials.get("port", 5433)
+        port=db_credentials.get("port", 5432)
     )
 
     query = f"""
@@ -1356,13 +1357,13 @@ def generar_chat_chart_o_prediccion(data_source, mensaje_usuario, **override_cre
 
         if not all(out.get(k) for k in ("host", "database", "user", "password", "port")):
             db = settings.DATABASES["default"]
-            out.setdefault("host", db.get("HOST", "localhost"))
+            out.setdefault("host", db.get("HOST", "postgres"))
             out.setdefault("database", db.get("NAME"))
             out.setdefault("user", db.get("USER"))
             out.setdefault("password", db.get("PASSWORD"))
-            out.setdefault("port", db.get("PORT", 5433))
+            out.setdefault("port", db.get("PORT", 5432))
 
-        out["port"] = int(out.get("port") or 5433)
+        out["port"] = int(out.get("port") or 5432)
         out.setdefault("schema", ds.internal_schema or "public")
         return out
 

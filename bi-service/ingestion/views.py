@@ -122,8 +122,8 @@ def upload_dataset_view(request):
         # 🟢 2) CONEXIÓN A POSTGRESQL EXTERNA
         # ======================================================
         if source_type == "db":
-            host = request.POST.get("db_host", "").strip()
-            port = int(request.POST.get("db_port") or 5433)  # 👈 por defecto 5433 como pediste
+            host = request.POST.get("db_host", "").strip() or "postgres"
+            port = int(request.POST.get("db_port") or 5432)  # 👈 por defecto 5432 para Docker
             database = request.POST.get("db_name", "").strip()
             user = request.POST.get("db_user", "").strip()
             password = request.POST.get("db_password", "").strip()
@@ -233,21 +233,21 @@ def normalize_db_credentials(db_credentials: dict, data_source=None) -> dict:
     """
     if db_credentials:
         return {
-            "host": db_credentials.get("host", "localhost"),
+            "host": db_credentials.get("host", "postgres"),
             "database": db_credentials.get("database") or (data_source.db_name if data_source else None),
             "user": db_credentials.get("user") or (data_source.db_user if data_source else None),
             "password": db_credentials.get("password") or (data_source.db_password if data_source else None),
-            "port": db_credentials.get("port") or (data_source.db_port if data_source else 5433),
+            "port": db_credentials.get("port") or (data_source.db_port if data_source else 5432),
             "schema": db_credentials.get("schema", "public"),
         }
 
     db = settings.DATABASES["default"]
     return {
-        "host": db.get("HOST", "localhost"),
+        "host": db.get("HOST", "postgres"),
         "database": db.get("NAME"),
         "user": db.get("USER"),
         "password": db.get("PASSWORD"),
-        "port": db.get("PORT", 5433),
+        "port": db.get("PORT", 5432),
         "schema": "public",
     }
 
@@ -307,7 +307,7 @@ def delete_source(request, source_id):
         # 3) Borrar el esquema asociado (tablas dinámicas del archivo)
         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE;')
 
-    return redirect("dashboard")  # Ajusta a la vista a la que quieras volver
+    return redirect("dashboard")
 
 def download_schema(request, source_id):
     dataset = get_object_or_404(UploadedDataset, id=source_id)
@@ -545,7 +545,7 @@ def chat_integrado_view(request):
         "mensaje": <str>,
         "db": {                     # (opcional) override de credenciales
           "host": "...",
-          "port": 5433,
+          "port": 5432,
           "database": "...",
           "user": "...",
           "password": "...",

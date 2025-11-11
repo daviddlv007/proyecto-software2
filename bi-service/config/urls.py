@@ -19,17 +19,17 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include
-from accounts.views import dashboard_view
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from ingestion.views import dashboard
 
 urlpatterns = [
+    path("", dashboard, name="dashboard"),
     path("ingestion/", include("ingestion.urls", namespace="ingestion")), 
     path('admin/', admin.site.urls),
-    path("", dashboard_view, name="dashboard"),
     path("accounts/", include("accounts.urls")),
     path("prep/", include(("prep.urls", "prep"), namespace="prep")),
     path('notifications/', include('notifications.urls', namespace='notifications')),
-    path('api/', include('Software2_BI.api_urls')),
+    path('api/', include('config.api_urls')),
     path("ml/", include(("ml.urls", "ml"), namespace="ml")),
 
 
