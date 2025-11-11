@@ -218,7 +218,3 @@ $RECYCLE.BIN/
 # ==========================================
 data/
 !data/.gitkeep
-
-docker-compose.yml
-docker-compose.production.yml
-docker-compose.prod.yml
