@@ -67,5 +67,6 @@ def get_core_raw_connection():
             'HOST': core_db['host'],
             'PORT': core_db['port'],
             'OPTIONS': {},  # Requerido por PostgreSQL backend
+            'ATOMIC_REQUESTS': False,  # Requerido por Django para todas las conexiones
         }
     return connections['core_db']
