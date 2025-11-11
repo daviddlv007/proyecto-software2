@@ -201,6 +201,7 @@ def pk_columns(conn, schema, table):
     return [r[0] for r in res]
 
 
+@login_required
 def prep_schema_index_view(request):
     # 1) Saca los schemas del usuario (vía DataSource)
     sources = DataSource.objects.filter(owner=request.user).order_by("-created_at")

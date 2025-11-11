@@ -66,7 +66,11 @@ def get_core_raw_connection():
             'PASSWORD': core_db['password'],
             'HOST': core_db['host'],
             'PORT': core_db['port'],
-            'OPTIONS': {},  # Requerido por PostgreSQL backend
-            'ATOMIC_REQUESTS': False,  # Requerido por Django para todas las conexiones
+            'OPTIONS': {},
+            'ATOMIC_REQUESTS': False,
+            'AUTOCOMMIT': True,
+            'CONN_HEALTH_CHECKS': False,
+            'CONN_MAX_AGE': 0,
+            'TIME_ZONE': None,
         }
     return connections['core_db']
