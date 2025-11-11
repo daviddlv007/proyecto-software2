@@ -75,7 +75,15 @@ def get_schema_info(schema: str, **db_credentials):
                 ORDER BY ordinal_position;
             """), {"schema": schema, "table": table})
             columnas = [c[0] for c in cols.fetchall()]
-            tablas[table] = {"columns": columnas}
+            
+            # Obtener conteo de filas
+            try:
+                count_result = conn.execute(text(f'SELECT COUNT(*) FROM "{schema}"."{table}"'))
+                row_count = count_result.scalar() or 0
+            except Exception:
+                row_count = 0
+            
+            tablas[table] = {"columns": columnas, "rows": row_count}
 
     return tablas
 
