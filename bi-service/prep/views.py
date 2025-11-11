@@ -266,7 +266,9 @@ def list_user_schemas(user):
     return items
 
 def list_tables_in_schema(schema: str):
-    engine = get_engine()
+    from config.db_config import get_core_sqlalchemy_engine
+    # Si es 'public', usa core-service BD; si no, usa BI-service BD
+    engine = get_core_sqlalchemy_engine() if schema == 'public' else get_engine()
     with engine.begin() as conn:
         res = conn.execute(text("""
             SELECT table_name
@@ -278,7 +280,9 @@ def list_tables_in_schema(schema: str):
 
 def fetch_page(schema: str, table: str, page: int, page_size: int):
     """Lee una página de datos con COUNT(*) para el total."""
-    engine = get_engine()
+    from config.db_config import get_core_sqlalchemy_engine
+    # Si es 'public', usa core-service BD; si no, usa BI-service BD
+    engine = get_core_sqlalchemy_engine() if schema == 'public' else get_engine()
     offset = (page - 1) * page_size
 
     # (Opcional pero recomendable) validar schema/table si vienen de usuario.
@@ -332,9 +336,11 @@ def prep_editor_view(request, schema, table):
 @login_required
 @require_http_methods(["GET"])
 def get_table_data(request, schema, table):
+    from config.db_config import get_core_sqlalchemy_engine
     page = int(request.GET.get("page", "1"))
     page_size = int(request.GET.get("page_size", "50"))
-    engine = get_engine()
+    # Si es 'public', usa core-service BD; si no, usa BI-service BD
+    engine = get_core_sqlalchemy_engine() if schema == 'public' else get_engine()
     offset = (page - 1) * page_size
 
     with engine.begin() as conn:
