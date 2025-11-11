@@ -59,44 +59,66 @@ public class VentaResolver {
     
     @MutationMapping
     public Venta createVenta(@Argument VentaInput input) {
-        // Crear venta
-        Venta venta = new Venta();
-        venta.setCliente(clienteRepository.findById(input.getClienteIdAsLong())
-            .orElseThrow(() -> new RuntimeException("Cliente no encontrado")));
-        venta.setFecha(input.getFechaAsLocalDateTime());
-        
-        // Agregar detalles y descontar stock
-        for (DetalleVentaInput detalleInput : input.getDetalles()) {
-            var producto = productoRepository.findById(detalleInput.getProductoIdAsLong())
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+        System.out.println("DEBUG: createVenta iniciado con input: " + input);
+        try {
+            // Crear venta
+            Venta venta = new Venta();
+            System.out.println("DEBUG: Venta creada: " + venta);
             
-            // VALIDACIÓN: Verificar stock disponible
-            if (producto.getStock() == null) {
-                throw new RuntimeException("Producto '" + producto.getNombre() + "' no tiene stock configurado");
+            venta.setCliente(clienteRepository.findById(input.getClienteIdAsLong())
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado")));
+            System.out.println("DEBUG: Cliente asignado: " + venta.getCliente());
+            
+            venta.setFecha(input.getFechaAsLocalDateTime());
+            System.out.println("DEBUG: Fecha asignada: " + venta.getFecha());
+            
+            // Agregar detalles y descontar stock
+            for (DetalleVentaInput detalleInput : input.getDetalles()) {
+                System.out.println("DEBUG: Procesando detalle: " + detalleInput);
+                
+                var producto = productoRepository.findById(detalleInput.getProductoIdAsLong())
+                    .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+                System.out.println("DEBUG: Producto encontrado: " + producto);
+                
+                // VALIDACIÓN: Verificar stock disponible
+                if (producto.getStock() == null) {
+                    throw new RuntimeException("Producto '" + producto.getNombre() + "' no tiene stock configurado");
+                }
+                
+                if (producto.getStock() < detalleInput.getCantidad()) {
+                    throw new RuntimeException("Stock insuficiente para producto '" + producto.getNombre() + 
+                        "'. Disponible: " + producto.getStock() + ", Solicitado: " + detalleInput.getCantidad());
+                }
+                
+                // REGLA DE NEGOCIO: Descontar stock
+                producto.setStock(producto.getStock() - detalleInput.getCantidad());
+                productoRepository.save(producto);
+                System.out.println("DEBUG: Stock actualizado para producto " + producto.getNombre() + ": " + producto.getStock());
+                
+                // Crear detalle de venta
+                DetalleVenta detalle = new DetalleVenta();
+                detalle.setProducto(producto);
+                detalle.setCantidad(detalleInput.getCantidad());
+                detalle.setPrecioUnitario(detalleInput.getPrecioUnitario());
+                detalle.calcularSubtotal(); // Calcular subtotal
+                
+                venta.addDetalle(detalle);
+                System.out.println("DEBUG: Detalle agregado: " + detalle);
             }
             
-            if (producto.getStock() < detalleInput.getCantidad()) {
-                throw new RuntimeException("Stock insuficiente para producto '" + producto.getNombre() + 
-                    "'. Disponible: " + producto.getStock() + ", Solicitado: " + detalleInput.getCantidad());
-            }
+            // Calcular total automáticamente
+            venta.calcularTotal();
+            System.out.println("DEBUG: Total calculado: " + venta.getTotal());
             
-            // REGLA DE NEGOCIO: Descontar stock
-            producto.setStock(producto.getStock() - detalleInput.getCantidad());
-            productoRepository.save(producto);
+            Venta ventaGuardada = ventaRepository.save(venta);
+            System.out.println("DEBUG: Venta guardada exitosamente: " + ventaGuardada);
             
-            // Crear detalle de venta
-            DetalleVenta detalle = new DetalleVenta();
-            detalle.setProducto(producto);
-            detalle.setCantidad(detalleInput.getCantidad());
-            detalle.setPrecioUnitario(detalleInput.getPrecioUnitario());
-            
-            venta.addDetalle(detalle);
+            return ventaGuardada;
+        } catch (Exception e) {
+            System.err.println("ERROR en createVenta: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
         }
-        
-        // Calcular total automáticamente
-        venta.calcularTotal();
-        
-        return ventaRepository.save(venta);
     }
     
     @MutationMapping
@@ -159,6 +181,7 @@ public class VentaResolver {
             detalle.setProducto(producto);
             detalle.setCantidad(detalleInput.getCantidad());
             detalle.setPrecioUnitario(detalleInput.getPrecioUnitario());
+            detalle.calcularSubtotal(); // Calcular subtotal
             
             venta.addDetalle(detalle);
         }

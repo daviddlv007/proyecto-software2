@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultado del Pago - Supermercado</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .success-icon, .cancel-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            animation: bounce 1s ease-in-out;
+        }
+
+        .success-icon {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .cancel-icon {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .success h1 {
+            color: #4CAF50;
+        }
+
+        .cancel h1 {
+            color: #ff6b6b;
+        }
+
+        .message {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .order-details {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .order-details h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .detail-label {
+            color: #666;
+        }
+
+        .detail-value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .actions {
+            margin-top: 30px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            margin: 10px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #dee2e6;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .error-details {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .btn {
+                display: block;
+                width: 100%;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Success State -->
+        <div th:if="${success == true}" class="success">
+            <div class="success-icon">✓</div>
+            <h1>¡Pago Exitoso!</h1>
+            <p class="message">
+                Tu pago ha sido procesado correctamente. 
+                Recibirás un email de confirmación en breve.
+            </p>
+
+            <div class="order-details" th:if="${venta}">
+                <h3>📋 Detalles de la Orden</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Número de Orden:</span>
+                    <span class="detail-value" th:text="${venta.id}">#12345</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Fecha:</span>
+                    <span class="detail-value" th:text="${#temporals.format(venta.fecha, 'dd/MM/yyyy HH:mm')}">01/11/2025 14:30</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Cliente:</span>
+                    <span class="detail-value" th:text="${venta.cliente?.nombre ?: 'Cliente'}">[Cliente]</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Items:</span>
+                    <span class="detail-value" th:text="${venta.detalles?.size() ?: 0}">2</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Total Pagado:</span>
+                    <span class="detail-value">$<span th:text="${#numbers.formatDecimal(venta.total, 0, 2)}">599.99</span></span>
+                </div>
+            </div>
+
+            <div class="actions">
+                <a href="#" class="btn btn-primary" onclick="window.close()">✅ Cerrar</a>
+                <a href="http://localhost:5173" class="btn btn-secondary">🏠 Ir al Inicio</a>
+            </div>
+        </div>
+
+        <!-- Cancel/Error State -->
+        <div th:unless="${success == true}" class="cancel">
+            <div class="cancel-icon">✕</div>
+            <h1>Pago Cancelado</h1>
+            <p class="message">
+                El pago ha sido cancelado o no se pudo procesar. 
+                Puedes intentar nuevamente cuando desees.
+            </p>
+
+            <div class="order-details" th:if="${venta}">
+                <h3>📋 Detalles de la Orden</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Número de Orden:</span>
+                    <span class="detail-value" th:text="${venta.id}">#12345</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Total:</span>
+                    <span class="detail-value">$<span th:text="${#numbers.formatDecimal(venta.total, 0, 2)}">599.99</span></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Estado:</span>
+                    <span class="detail-value" style="color: #ff6b6b;">Pendiente de pago</span>
+                </div>
+            </div>
+
+            <div class="error-details" th:if="${error}">
+                <strong>⚠️ Error:</strong>
+                <span th:text="${error}">Error desconocido</span>
+            </div>
+
+            <div class="actions">
+                <a href="#" class="btn btn-secondary" onclick="window.close()">❌ Cerrar</a>
+                <a href="http://localhost:5173" class="btn btn-primary">🔄 Intentar de Nuevo</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🛒 Supermercado App • Powered by Stripe</p>
+            <p>Si tienes problemas, contacta a soporte</p>
+        </div>
+    </div>
+
+    <script>
+        // Auto-close después de 30 segundos en caso de éxito
+        if (document.querySelector('.success')) {
+            setTimeout(() => {
+                if (confirm('¿Deseas cerrar esta ventana?')) {
+                    window.close();
+                }
+            }, 30000);
+        }
+
+        // Registrar evento para analytics
+        if (document.querySelector('.success')) {
+            console.log('✅ Pago completado exitosamente');
+        } else {
+            console.log('❌ Pago cancelado o falló');
+        }
+    </script>
+</body>
+</html>

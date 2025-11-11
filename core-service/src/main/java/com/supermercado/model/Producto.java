@@ -5,6 +5,7 @@ import com.supermercado.model.Categoria;
 
 @Data
 @Entity
+@Table(name = "productos")
 public class Producto {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

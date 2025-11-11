@@ -1,12 +1,15 @@
 package com.supermercado.model;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
 
 @Data
+@ToString(exclude = {"detalles"})  // Excluir detalles del toString para evitar recursión
 @Entity
+@Table(name = "ventas")
 public class Venta {
     @Id 
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -34,8 +34,8 @@ services:
       - app-network
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # (opcional) Semillas iniciales en el primer arranque:
-      # - ./db/init:/docker-entrypoint-initdb.d:ro
+      # Scripts de inicialización automática (ejecutados al primer arranque)
+      - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d coredb"]
       interval: 10s
