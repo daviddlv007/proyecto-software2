@@ -66,5 +66,6 @@ def get_core_raw_connection():
             'PASSWORD': core_db['password'],
             'HOST': core_db['host'],
             'PORT': core_db['port'],
+            'OPTIONS': {},  # Requerido por PostgreSQL backend
         }
     return connections['core_db']
