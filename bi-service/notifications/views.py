@@ -4,7 +4,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db import connection
 from ingestion.models import DataSource
 from ingestion.services import get_schema_info
 from .models import KPI, AlertRule, Alert
@@ -12,6 +11,7 @@ from .services import AlertManager, KPICalculator
 from .forms import KPIForm, AlertRuleForm
 from django.utils import timezone
 from notifications.services import AlertEvaluator
+from config.db_config import get_core_raw_connection
 
 @login_required
 def alerts_dashboard(request):
@@ -78,7 +78,8 @@ def get_tables_ajax(request):
             return JsonResponse({'tables': []})
         
         # Obtener todas las tablas del esquema
-        with connection.cursor() as cursor:
+        core_conn = get_core_raw_connection()
+        with core_conn.cursor() as cursor:
             cursor.execute("""
                 SELECT table_name 
                 FROM information_schema.tables 
@@ -112,7 +113,8 @@ def get_columns_by_table_ajax(request):
             return JsonResponse({'columns': []})
         
         # Solo obtener columnas numéricas de la tabla específica
-        with connection.cursor() as cursor:
+        core_conn = get_core_raw_connection()
+        with core_conn.cursor() as cursor:
             cursor.execute("""
                 SELECT column_name, data_type 
                 FROM information_schema.columns 

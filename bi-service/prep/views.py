@@ -7,7 +7,6 @@ from django.views.decorators.csrf import csrf_exempt
 from sqlalchemy import text, inspect
 import pandas as pd
 import json
-from django.db import connection
 from datetime import datetime, date, time
 import re
 import os
@@ -15,7 +14,8 @@ from django.conf import settings
 import google.generativeai as genai
 
 from ingestion.models import DataSource
-from ingestion.services import get_engine  
+from ingestion.services import get_engine
+from config.db_config import get_core_raw_connection  
 
 from datetime import datetime, date, time
 from decimal import Decimal
@@ -216,7 +216,8 @@ def prep_schema_index_view(request):
     # - Filas aproximadas (reltuples)
     # - Tamaño total (sum rela+idx)
     items = []
-    with connection.cursor() as cur:
+    core_conn = get_core_raw_connection()
+    with core_conn.cursor() as cur:
         # tablas por schema
         cur.execute("""
             SELECT table_schema, COUNT(*) AS table_count

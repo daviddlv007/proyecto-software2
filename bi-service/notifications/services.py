@@ -1,12 +1,12 @@
 from decimal import Decimal
 from django.core.mail import send_mail
 from django.conf import settings
-from django.db import connection
 from django.utils import timezone
 from typing import Dict, List, Any
 import logging
 
 from .models import KPI, AlertRule, Alert, NotificationLog
+from config.db_config import get_core_raw_connection
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,8 @@ class KPICalculator:
             table = kpi.table_name
             column = kpi.column_name
             
-            with connection.cursor() as cursor:
+            core_conn = get_core_raw_connection()
+            with core_conn.cursor() as cursor:
                 cursor.execute("""
                     SELECT data_type 
                     FROM information_schema.columns 
@@ -92,7 +93,8 @@ class KPICalculator:
                 query_params = list(kpi.filter_conditions.values())
             
             # Ejecutar consulta
-            with connection.cursor() as cursor:
+            core_conn = get_core_raw_connection()
+            with core_conn.cursor() as cursor:
                 cursor.execute(base_query, query_params)
                 result = cursor.fetchone()
                 
@@ -115,7 +117,8 @@ class KPICalculator:
             # Consulta de muestra
             sample_query = f'SELECT "{column}" FROM "{schema}"."{table}" WHERE "{column}" IS NOT NULL LIMIT {limit}'
             
-            with connection.cursor() as cursor:
+            core_conn = get_core_raw_connection()
+            with core_conn.cursor() as cursor:
                 cursor.execute(sample_query)
                 sample_data = [row[0] for row in cursor.fetchall()]
                 
