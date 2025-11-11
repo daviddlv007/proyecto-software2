@@ -375,7 +375,18 @@ def read_csv_with_auto_encoding(path):
         
 '''
 def get_schema_info(schema: str, preview_rows: int = 5, **db_credentials):
-    engine = get_engine(**db_credentials)
+    from config.db_config import get_core_sqlalchemy_engine
+    import sys
+    
+    # Si es 'public', usa core-service BD; si no, usa BI-service BD
+    if schema == 'public' and not db_credentials:
+        sys.stderr.write(f"🔍 DEBUG: schema='{schema}', db_credentials={db_credentials}, using CORE-SERVICE\n")
+        sys.stderr.flush()
+        engine = get_core_sqlalchemy_engine()
+    else:
+        sys.stderr.write(f"🔍 DEBUG: schema='{schema}', db_credentials={db_credentials}, using BI-SERVICE\n")
+        sys.stderr.flush()
+        engine = get_engine(**db_credentials)
     info = {}
 
     with engine.begin() as conn:

@@ -253,12 +253,24 @@ class NotificationService:
         """Envía notificación por email"""
         try:
             alert_rule = alert.alert_rule
-            recipients = alert_rule.email_recipients or [alert_rule.kpi.owner.email]
+            # Obtener recipients y filtrar vacíos
+            recipients = alert_rule.email_recipients or []
+            if not recipients and alert_rule.kpi.owner.email:
+                recipients = [alert_rule.kpi.owner.email]
+            
+            # Filtrar emails vacíos y None
+            recipients = [r for r in recipients if r and r.strip()]
+            
+            if not recipients:
+                logger.warning(f"No hay destinatarios configurados para alerta {alert.id}")
+                return
             
             subject = f"🚨 Alerta {alert_rule.severity.upper()}: {alert_rule.name}"
             
             message = f"""
 Estimado usuario,
+
+```
 
 Se ha disparado una alerta en el sistema BI:
 

@@ -51,7 +51,12 @@ def get_schema_info(schema: str, **db_credentials):
     """
     Retorna {tabla: {"columns": [...]}} para el esquema dado.
     """
-    engine = _get_engine(**db_credentials)
+    from config.db_config import get_core_sqlalchemy_engine
+    # Si es 'public' y no hay credenciales externas, usa core-service BD
+    if schema == 'public' and not db_credentials:
+        engine = get_core_sqlalchemy_engine()
+    else:
+        engine = _get_engine(**db_credentials)
     tablas: Dict[str, Dict[str, list]] = {}
 
     with engine.connect() as conn:
